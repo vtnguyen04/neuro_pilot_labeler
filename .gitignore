@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+.env
+build/
+dist/
+*.egg-info/
+
+# Node (UI)
+ui/node_modules/
+ui/dist/
+ui/.env.local
+ui/.env.*.local
+
+# Storage & Data
+data/minio_data/
+data/labeler.db
+data/uploads/
+data/exports/
+*.log
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
