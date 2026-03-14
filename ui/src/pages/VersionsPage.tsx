@@ -22,10 +22,10 @@ export const VersionsPage: React.FC = () => {
     loadVersions();
   }, [loadVersions]);
 
-  const handlePublish = async (name: string, train: number, val: number, test: number) => {
+  const handlePublish = async (name: string, train: number, val: number, test: number, resizeWidth?: number, resizeHeight?: number) => {
     setIsPublishing(true);
     try {
-        await API.labels.publish(projectId, name, train, val, test);
+        await API.labels.publish(projectId, name, train, val, test, resizeWidth, resizeHeight);
         loadVersions();
         setIsModalOpen(false);
         alert("Physical Export Complete! Check the 'data/versions' directory.");

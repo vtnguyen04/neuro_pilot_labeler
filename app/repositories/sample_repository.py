@@ -1,9 +1,12 @@
 import json
 import sqlite3
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from .base_repository import BaseRepository
+from ..domain.interfaces.repository import ISampleRepository
+from ..domain.models.sample import Sample
+from ..domain.models.label import LabelData
 
-class SampleRepository(BaseRepository):
+class SampleRepository(BaseRepository, ISampleRepository):
     def _init_db(self):
         with self._get_connection() as conn:
             conn.execute("""
@@ -22,8 +25,8 @@ class SampleRepository(BaseRepository):
 
     def get_all_samples(self, limit: int = 100, offset: int = 0, is_labeled: Optional[bool] = None,
                        split: Optional[str] = None, project_id: Optional[int] = None,
-                       class_id: Optional[int] = None, command: Optional[int] = None) -> List[dict]:
-        query = "SELECT image_name as filename, is_labeled, updated_at, data, image_path FROM samples"
+                       class_id: Optional[int] = None, command: Optional[int] = None) -> List[Sample]:
+        query = "SELECT image_name as filename, is_labeled, updated_at, data, image_path, project_id FROM samples"
         where_clauses = []
         params = []
 
@@ -55,42 +58,34 @@ class SampleRepository(BaseRepository):
 
         with self._get_connection() as conn:
             rows = conn.execute(query, params).fetchall()
-            return [dict(row) for row in rows]
+            return [Sample.from_row(dict(row)) for row in rows]
 
-    def get_sample(self, filename: str) -> Optional[dict]:
+    def get_sample(self, filename: str) -> Optional[Sample]:
         with self._get_connection() as conn:
-            row = conn.execute("SELECT * FROM samples WHERE image_name = ?", (filename,)).fetchone()
+            row = conn.execute("SELECT image_name as filename, * FROM samples WHERE image_name = ?", (filename,)).fetchone()
             if not row:
                 return None
-            return dict(row)
+            return Sample.from_row(dict(row))
 
-    def add_sample(self, filename: str, image_path: str, project_id: int):
+    def add_sample(self, sample: Sample) -> None:
         with self._get_connection() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO samples (image_name, image_path, project_id, data, is_labeled) VALUES (?, ?, ?, ?, ?)",
-                (filename, image_path, project_id, json.dumps({"bboxes": [], "waypoints": [], "command": 0}), 0)
+                (sample.filename, sample.image_path, sample.project_id, sample.label_data.to_json_str(), 1 if sample.is_labeled else 0)
             )
             conn.commit()
 
-    def save_label(self, filename: str, label_data: dict):
+    def save_label(self, sample: Sample) -> None:
         with self._get_connection() as conn:
             conn.execute(
-                "UPDATE samples SET data = ?, is_labeled = 1, updated_at = CURRENT_TIMESTAMP WHERE image_name = ?",
-                (json.dumps(label_data), filename)
+                "UPDATE samples SET data = ?, is_labeled = ?, updated_at = CURRENT_TIMESTAMP WHERE image_name = ?",
+                (sample.label_data.to_json_str(), 1 if sample.is_labeled else 0, sample.filename)
             )
             conn.commit()
 
-    def delete_sample(self, filename: str):
+    def delete_sample(self, filename: str) -> None:
         with self._get_connection() as conn:
             conn.execute("DELETE FROM samples WHERE image_name = ?", (filename,))
-            conn.commit()
-
-    def reset_label(self, filename: str):
-        with self._get_connection() as conn:
-            conn.execute(
-                "UPDATE samples SET data = ?, is_labeled = 0, updated_at = CURRENT_TIMESTAMP WHERE image_name = ?",
-                (json.dumps({"bboxes":[], "waypoints":[], "command":0}), filename)
-            )
             conn.commit()
 
     def duplicate_sample(self, filename: str, new_filename: str):
@@ -111,12 +106,12 @@ class SampleRepository(BaseRepository):
             row = conn.execute("SELECT COUNT(*) FROM samples WHERE image_path = ?", (image_path,)).fetchone()
             return row[0]
 
-    def delete_by_project(self, project_id: int):
+    def delete_by_project(self, project_id: int) -> None:
         with self._get_connection() as conn:
             conn.execute("DELETE FROM samples WHERE project_id = ?", (project_id,))
             conn.commit()
 
-    def get_stats(self, project_id: Optional[int] = None):
+    def get_stats(self, project_id: Optional[int] = None) -> Dict[str, Any]:
         with self._get_connection() as conn:
             def get_count(split: Optional[str] = None, labeled: Optional[bool] = None):
                 q = "SELECT COUNT(*) FROM samples"
@@ -144,7 +139,8 @@ class SampleRepository(BaseRepository):
                 "labeled": get_count(labeled=True),
                 "total": get_count()
             }
-    def get_analytics(self, project_id: int):
+
+    def get_analytics(self, project_id: int) -> Dict[str, Any]:
         with self._get_connection() as conn:
             class_dist_query = """
                 SELECT
@@ -195,3 +191,23 @@ class SampleRepository(BaseRepository):
                 "total_waypoints": stats_row['total_waypoints'] or 0,
                 "samples_with_waypoints": wp_samples
             }
+
+    def get_raw_samples_for_project(self, project_id: int) -> List[Dict[str, Any]]:
+        with self._get_connection() as conn:
+            rows = conn.execute("SELECT rowid as id, data FROM samples WHERE project_id = ? AND data IS NOT NULL", (project_id,)).fetchall()
+            return [dict(r) for r in rows]
+
+    def update_raw_sample_data(self, sample_id: int, raw_data_str: str) -> None:
+        with self._get_connection() as conn:
+            conn.execute("UPDATE samples SET data = ? WHERE rowid = ?", (raw_data_str, sample_id))
+            conn.commit()
+
+    def reset_label(self, filename: str):
+        sample = self.get_sample(filename)
+        if sample:
+            sample.reset_label()
+            self.save_label(sample)
+
+    def add_sample_legacy(self, filename: str, image_path: str, project_id: int):
+        s = Sample(filename=filename, image_path=image_path, project_id=project_id)
+        self.add_sample(s)

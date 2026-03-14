@@ -61,12 +61,11 @@ export const API = {
         samples_with_waypoints: number
       }>(`/labels/projects/${projectId}/analytics`),
 
-    // Updated Versions API (Consolidated)
     getVersions: (projectId: number) => fetchJSON<Version[]>(`/versions/?project_id=${projectId}`),
-    publish: (projectId: number, name: string, train: number = 0.8, val: number = 0.1, test: number = 0.1) =>
+    publish: (projectId: number, name: string, train: number, val: number, test: number, resizeWidth?: number, resizeHeight?: number) =>
       fetchJSON('/versions/', {
-          method: 'POST',
-          body: JSON.stringify({ project_id: projectId, name, train_ratio: train, val_ratio: val, test_ratio: test })
+        method: 'POST',
+        body: JSON.stringify({ project_id: projectId, name, train_ratio: train, val_ratio: val, test_ratio: test, resize_width: resizeWidth, resize_height: resizeHeight }),
       }),
     deleteVersion: (versionId: number) => fetchJSON(`/versions/${versionId}`, { method: 'DELETE' }),
     downloadVersion: (versionId: number) => `${BASE_URL}/versions/${versionId}/download`,

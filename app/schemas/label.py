@@ -41,6 +41,8 @@ class VersionCreate(VersionBase):
     train_ratio: float = 0.8
     val_ratio: float = 0.1
     test_ratio: float = 0.1
+    resize_width: Optional[int] = None
+    resize_height: Optional[int] = None
 
 class VersionRead(VersionBase):
     id: int

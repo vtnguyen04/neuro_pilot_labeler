@@ -35,7 +35,9 @@ def publish_version(
             version.project_id,
             version.train_ratio,
             version.val_ratio,
-            version.test_ratio
+            version.test_ratio,
+            version.resize_width,
+            version.resize_height
         )
     except Exception as e:
         import traceback

@@ -1,186 +1,169 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse, StreamingResponse
 from typing import List, Optional
-from ..schemas.label import LabelRead, LabelUpdate, ProjectCreate
-from ..services.label_service import LabelService
-from ..repositories.sample_repository import SampleRepository
-from ..repositories.project_repository import ProjectRepository
-from ..core.config import Config
-from ..core.storage.storage_provider import MinioStorageProvider
 import io
 import logging
-from fastapi.responses import FileResponse, StreamingResponse
 from pathlib import Path
+
+from ..schemas.label import LabelRead, LabelUpdate, ProjectCreate
+from ..core.config import Config
+from ..core.storage.storage_provider import MinioStorageProvider
+from ..core.storage.hybrid_storage import HybridImageProvider
+
+from ..repositories.sample_repository import SampleRepository
+from ..repositories.project_repository import ProjectRepository
+
+from ..domain.services.project_service import ProjectService
+from ..domain.services.sample_service import SampleService
+from ..domain.services.annotation_service import AnnotationService
 
 router = APIRouter(prefix="/api/v1/labels", tags=["labels"])
 logger = logging.getLogger("uvicorn")
 
-# --- Dependencies ---
+def get_db_path():
+    return Config.DB_PATH
 
-def get_repositories():
-    db_path = Config.DB_PATH
-    return SampleRepository(db_path), ProjectRepository(db_path)
+def get_project_repo(db_path=Depends(get_db_path)):
+    return ProjectRepository(db_path)
 
-def get_label_service(repos = Depends(get_repositories)):
-    sample_repo, project_repo = repos
-    return LabelService(sample_repo, project_repo)
+def get_sample_repo(db_path=Depends(get_db_path)):
+    return SampleRepository(db_path)
 
-# --- STATIC ROUTES ---
+def get_project_service(
+    project_repo=Depends(get_project_repo), 
+    sample_repo=Depends(get_sample_repo)
+) -> ProjectService:
+    return ProjectService(project_repo, sample_repo)
 
-@router.get("/projects")
-def get_projects(service: LabelService = Depends(get_label_service)):
-    return service.get_projects()
+def get_sample_service(sample_repo=Depends(get_sample_repo)) -> SampleService:
+    return SampleService(sample_repo)
 
-@router.get("/projects/{project_id}/analytics")
-def get_analytics(project_id: int, service: LabelService = Depends(get_label_service)):
-    return service.get_analytics(project_id)
+def get_annotation_service(
+    sample_repo=Depends(get_sample_repo), 
+    project_repo=Depends(get_project_repo)
+) -> AnnotationService:
+    return AnnotationService(sample_repo, project_repo)
 
-@router.post("/projects")
-def create_project(project: ProjectCreate, service: LabelService = Depends(get_label_service)):
-    return service.create_project(project.name, project.description, project.classes, project.commands)
-
-@router.get("/stats")
-def get_stats(project_id: Optional[int] = None, service: LabelService = Depends(get_label_service)):
-    return service.get_stats(project_id)
-
-@router.get("/")
-def list_labels(limit: int = 100, offset: int = 0, is_labeled: Optional[bool] = None, split: Optional[str] = None, project_id: Optional[int] = None, class_id: Optional[int] = None, command: Optional[int] = None, service: LabelService = Depends(get_label_service)):
-    return service.get_samples(limit, offset, is_labeled, split, project_id, class_id, command)
-
-# --- IMAGE SERVING ---
-
-@router.get("/image/{filename}")
-async def get_image(filename: str, service: LabelService = Depends(get_label_service)):
-    # Lazy import to avoid circular dependency
-    from ..core.storage.storage_provider import MinioStorageProvider
-    import re
-    import io
-
-    storage = MinioStorageProvider(
+def get_storage_provider() -> HybridImageProvider:
+    minio = MinioStorageProvider(
         endpoint=Config.MINIO_ENDPOINT,
         access_key=Config.MINIO_ACCESS_KEY,
         secret_key=Config.MINIO_SECRET_KEY,
         bucket_name=Config.MINIO_BUCKET_NAME,
         secure=Config.MINIO_SECURE
     )
+    return HybridImageProvider(minio)
 
-    # 1. Try direct lookup from Storage (MinIO)
-    base_filename = re.sub(r'_dup\d+', '', filename)
-    for name in [filename, base_filename]:
-        try:
-            content = storage.get_object(name)
-            if content:
-                logger.info(f"Serving {filename} from MinIO Storage")
-                return StreamingResponse(io.BytesIO(content), media_type="image/jpeg")
-        except Exception:
-            pass
 
-    # 2. Try DB lookup for physical path
-    sample = service.sample_repo.get_sample(filename)
-    if not sample:
-        # If it's a duplicate and not in DB yet (edge case), try base filename lookup
-        sample = service.sample_repo.get_sample(base_filename)
+@router.get("/projects")
+def get_projects(service: ProjectService = Depends(get_project_service)):
+    return service.get_projects()
 
-    if sample:
-        uri = sample['image_path']
-        if uri.startswith("minio://"):
-            try:
-                obj_name = uri.split("/", 3)[-1]
-                content = storage.get_object(obj_name)
-                logger.info(f"Serving {filename} from referenced MinIO object: {obj_name}")
-                return StreamingResponse(io.BytesIO(content), media_type="image/jpeg")
-            except Exception as e:
-                logger.error(f"Failed to fetch {obj_name} from MinIO: {e}")
+@router.get("/projects/{project_id}/analytics")
+def get_analytics(project_id: int, service: ProjectService = Depends(get_project_service)):
+    return service.get_analytics(project_id)
 
-        local_p = Path(uri)
-        if local_p.exists():
-            logger.info(f"Serving {filename} from local path: {local_p}")
-            return FileResponse(local_p)
-
-        # If local path refers to the duplicate name but only original exists
-        if base_filename != filename:
-            alt_local_p = Path(str(local_p).replace(filename, base_filename))
-            if alt_local_p.exists():
-                logger.info(f"Serving {filename} from original local path: {alt_local_p}")
-                return FileResponse(alt_local_p)
-
-    # 3. Last resort: Search in known data directories
-    search_dirs = [Config.RAW_DIR, Config.TRAIN_DIR, Config.VAL_DIR, Config.TEST_DIR]
-    for d in search_dirs:
-        for name in [filename, base_filename]:
-            p = d / name
-            if p.exists():
-                logger.info(f"Serving {filename} from search dir: {p}")
-                return FileResponse(p)
-
-    # 4. Fuzzy match: search for files ending with the requested filename (handles UUID prefix)
-    for d in search_dirs:
-        if d.exists():
-            for name in [filename, base_filename]:
-                matches = list(d.glob(f"*_{name}"))
-                if matches:
-                    logger.info(f"Serving {filename} via fuzzy match: {matches[0]}")
-                    return FileResponse(matches[0])
-
-    # 5. Search in legacy images directory (video uploads stored in subdirectories)
-    if Config.LEGACY_IMAGES_DIR.exists():
-        for name in [filename, base_filename]:
-            matches = list(Config.LEGACY_IMAGES_DIR.rglob(name))
-            if matches:
-                logger.info(f"Serving {filename} from legacy images: {matches[0]}")
-                return FileResponse(matches[0])
-
-    raise HTTPException(status_code=404, detail="Image resource not found. Ensure file exists in MinIO or local data folders.")
-
-# --- PROJECT SUB-ROUTES ---
+@router.post("/projects")
+def create_project(project: ProjectCreate, service: ProjectService = Depends(get_project_service)):
+    return service.create_project(project.name, project.description, project.classes, project.commands)
 
 @router.delete("/projects/{project_id}")
-def delete_project(project_id: int, service: LabelService = Depends(get_label_service)):
-    return service.delete_project(project_id)
+def delete_project(project_id: int, service: ProjectService = Depends(get_project_service)):
+    service.delete_project(project_id)
+    return {"status": "success"}
 
 @router.get("/projects/{project_id}/classes")
-def get_classes(project_id: int, service: LabelService = Depends(get_label_service)):
-    return service.project_repo.get_classes(project_id)
+def get_classes(project_id: int, service: ProjectService = Depends(get_project_service)):
+    return service.get_classes(project_id)
 
 @router.post("/projects/{project_id}/classes")
-def update_classes(project_id: int, classes: List[str], service: LabelService = Depends(get_label_service)):
-    return service.project_repo.update_classes(project_id, classes)
+def update_classes(project_id: int, classes: List[str], service: ProjectService = Depends(get_project_service)):
+    service.update_classes(project_id, classes)
+    return {"status": "success"}
+
+@router.delete("/projects/{project_id}/classes/{class_index}")
+def delete_class(project_id: int, class_index: int, service: ProjectService = Depends(get_project_service)):
+    return service.delete_class(project_id, class_index)
 
 @router.get("/projects/{project_id}/commands")
-def get_commands(project_id: int, service: LabelService = Depends(get_label_service)):
+def get_commands(project_id: int, service: ProjectService = Depends(get_project_service)):
     return service.get_commands(project_id)
 
 @router.post("/projects/{project_id}/commands")
-def update_commands(project_id: int, commands: List[str], service: LabelService = Depends(get_label_service)):
-    return service.update_commands(project_id, commands)
+def update_commands(project_id: int, commands: List[str], service: ProjectService = Depends(get_project_service)):
+    service.update_commands(project_id, commands)
+    return {"status": "success"}
 
 
-# --- DYNAMIC FILENAME ROUTES ---
+@router.get("/stats")
+def get_stats(project_id: Optional[int] = None, service: SampleService = Depends(get_sample_service)):
+    return service.get_stats(project_id)
+
+@router.get("/")
+def list_labels(
+    limit: int = 100, 
+    offset: int = 0, 
+    is_labeled: Optional[bool] = None, 
+    split: Optional[str] = None, 
+    project_id: Optional[int] = None, 
+    class_id: Optional[int] = None, 
+    command: Optional[int] = None, 
+    service: SampleService = Depends(get_sample_service)
+):
+    return service.get_samples(limit, offset, is_labeled, split, project_id, class_id, command)
+
+
+@router.get("/image/{filename}")
+async def get_image(
+    filename: str, 
+    sample_repo: SampleRepository = Depends(get_sample_repo),
+    storage: HybridImageProvider = Depends(get_storage_provider)
+):
+    sample_uri = None
+    sample = sample_repo.get_sample(filename)
+    if not sample:
+        import re
+        base_filename = re.sub(r'_dup\d+', '', filename)
+        sample = sample_repo.get_sample(base_filename)
+        
+    if sample:
+        sample_uri = sample.image_path
+
+    result = storage.resolve_file_path(filename, sample_uri)
+    
+    if result is None:
+        raise HTTPException(status_code=404, detail="Image resource not found.")
+        
+    if isinstance(result, bytes):
+        return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
+    elif isinstance(result, Path):
+        return FileResponse(result)
+
 
 @router.get("/{filename}")
-def get_label(filename: str, service: LabelService = Depends(get_label_service)):
+def get_label(filename: str, service: AnnotationService = Depends(get_annotation_service)):
     res = service.get_sample_detail(filename)
     if not res:
         raise HTTPException(status_code=404)
     return res
 
 @router.post("/{filename}")
-def save_label(filename: str, update: LabelUpdate, service: LabelService = Depends(get_label_service)):
+def save_label(filename: str, update: LabelUpdate, service: AnnotationService = Depends(get_annotation_service)):
     return service.update_label(filename, update)
 
 @router.post("/batch/delete")
-def delete_batch(payload: dict, service: LabelService = Depends(get_label_service)):
-    """Delete multiple samples at once (bulk delete)."""
+def delete_batch(payload: dict, service: SampleService = Depends(get_sample_service)):
     filenames = payload.get("filenames", [])
     return service.delete_batch(filenames)
 
 @router.delete("/{filename}")
-def delete_label(filename: str, service: LabelService = Depends(get_label_service)):
+def delete_label(filename: str, service: SampleService = Depends(get_sample_service)):
     return service.delete_sample(filename)
 
 @router.post("/{filename}/reset")
-def reset_label(filename: str, service: LabelService = Depends(get_label_service)):
+def reset_label(filename: str, service: AnnotationService = Depends(get_annotation_service)):
     return service.reset_label(filename)
 
 @router.post("/{filename}/duplicate")
-def duplicate_label(filename: str, new_filename: str, service: LabelService = Depends(get_label_service)):
+def duplicate_label(filename: str, new_filename: str, service: AnnotationService = Depends(get_annotation_service)):
     return service.duplicate_sample(filename, new_filename)

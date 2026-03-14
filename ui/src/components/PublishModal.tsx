@@ -4,13 +4,14 @@ import React, { useState } from 'react';
 interface PublishModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPublish: (name: string, train: number, val: number, test: number) => void;
+  onPublish: (name: string, train: number, val: number, test: number, resizeWidth?: number, resizeHeight?: number) => void;
   isPublishing: boolean;
 }
 
 export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onPublish, isPublishing }) => {
   const [name, setName] = useState('v1');
   const [ratios, setRatios] = useState({ train: 0.8, val: 0.1, test: 0.1 });
+  const [resizeMode, setResizeMode] = useState<'original' | '640' | '320'>('original');
 
   if (!isOpen) return null;
 
@@ -19,7 +20,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
     const remaining = 1 - newValue;
     const otherKeys = (['train', 'val', 'test'] as const).filter(k => k !== key);
 
-    // Proportional distribution
     const otherTotal = ratios[otherKeys[0]] + ratios[otherKeys[1]];
     let d0 = 0;
     let d1 = 0;
@@ -56,7 +56,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
         </header>
 
         <div className="p-8 space-y-8">
-          {/* Name Input */}
           <div className="space-y-3">
             <label className="text-[10px] font-cyber uppercase tracking-widest text-accent flex items-center gap-2">
               Version Identifier <Info className="w-3 h-3 text-white/20" />
@@ -70,7 +69,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
             />
           </div>
 
-          {/* Ratio Sliders */}
           <div className="space-y-6">
             <label className="text-[10px] font-cyber uppercase tracking-widest text-accent">Dataset Split Ratios</label>
 
@@ -98,7 +96,6 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
               ))}
             </div>
 
-            {/* Visual Progress Bar */}
             <div className="h-4 w-full bg-white/5 rounded-full overflow-hidden flex border border-white/5 p-0.5">
                 <div style={{ width: `${ratios.train * 100}%` }} className="h-full bg-accent rounded-l-full transition-all duration-500"></div>
                 <div style={{ width: `${ratios.val * 100}%` }} className="h-full bg-blue-500 transition-all duration-500"></div>
@@ -107,6 +104,33 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
             {Math.abs(total - 1) > 0.01 && (
                 <p className="text-[10px] text-red-500/60 font-medium">Warning: Ratios must sum to 100% (Current: {(total * 100).toFixed(0)}%)</p>
             )}
+          </div>
+
+          <div className="space-y-4">
+            <label className="text-[10px] font-cyber uppercase tracking-widest text-accent flex items-center gap-2">
+              Image Resizing (Roboflow Style) <Info className="w-3 h-3 text-white/20" />
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { id: 'original', label: 'Original', desc: 'No resize' },
+                { id: '640', label: '640x640', desc: 'Standard' },
+                { id: '320', label: '320x320', desc: 'Fast' }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setResizeMode(opt.id as any)}
+                  className={`px-4 py-3 rounded-xl border-2 transition-all text-left ${
+                    resizeMode === opt.id 
+                    ? 'border-accent bg-accent/10 text-white' 
+                    : 'border-white/10 bg-white/5 text-white/40 hover:border-white/20'
+                  }`}
+                >
+                  <div className="text-sm font-bold">{opt.label}</div>
+                  <div className="text-[10px] opacity-60 uppercase">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -118,7 +142,11 @@ export const PublishModal: React.FC<PublishModalProps> = ({ isOpen, onClose, onP
             Cancel
           </button>
           <button
-            onClick={() => onPublish(name, ratios.train, ratios.val, ratios.test)}
+            onClick={() => {
+                const w = resizeMode === '640' ? 640 : resizeMode === '320' ? 320 : undefined;
+                const h = resizeMode === '640' ? 640 : resizeMode === '320' ? 320 : undefined;
+                onPublish(name, ratios.train, ratios.val, ratios.test, w, h);
+            }}
             disabled={isPublishing || Math.abs(total - 1) > 0.01}
             className="flex-[2] px-4 py-3 rounded-xl bg-accent text-black font-bold hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
