@@ -30,12 +30,16 @@ export const AnnotatePage: React.FC = () => {
   const [currentData, setCurrentData] = useState<CurrentDataState>({ bboxes: [], waypoints: [], control_points: [], command: 0 });
   const [mode, setMode] = useState<'bbox' | 'waypoint'>('bbox');
   const [classes, setClasses] = useState<string[]>([]);
+  const [commands, setCommands] = useState<string[]>([]);
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+  const [isCommandModalOpen, setIsCommandModalOpen] = useState(false);
   const [history, setHistory] = useState<CurrentDataState[]>([]);
   const [selectedBBoxIdx, setSelectedBBoxIdx] = useState<number | null>(null);
   const [filter, setFilter] = useState<'all' | 'labeled' | 'unlabeled'>(initialFile ? 'all' : 'unlabeled');
   const [filterClass, setFilterClass] = useState<number | null>(null);
+  const [filterCommand, setFilterCommand] = useState<number | null>(null);
   const [isFilterClassOpen, setIsFilterClassOpen] = useState(false);
+  const [isFilterCommandOpen, setIsFilterCommandOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'none' | 'saving' | 'saved' | 'error'>('none');
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -56,10 +60,14 @@ export const AnnotatePage: React.FC = () => {
 
   const loadClasses = useCallback(async () => {
     try {
-        const list = await API.labels.getClasses(projectId);
-        if (list) setClasses(list);
+        const [clsList, cmdList] = await Promise.all([
+            API.labels.getClasses(projectId),
+            API.labels.getCommands(projectId)
+        ]);
+        if (clsList) setClasses(clsList);
+        if (cmdList) setCommands(cmdList);
     } catch(error) {
-        console.error("Failed to load classes", error);
+        console.error("Failed to load schema", error);
     }
   }, [projectId]);
 
@@ -68,10 +76,11 @@ export const AnnotatePage: React.FC = () => {
         limit: 5000,
         project_id: projectId,
         is_labeled: filter === 'all' ? undefined : (filter === 'labeled'),
-        class_id: filterClass ?? undefined
+        class_id: filterClass ?? undefined,
+        command: filterCommand ?? undefined
     });
     setSamples(list);
-  }, [projectId, filter, filterClass]);
+  }, [projectId, filter, filterClass, filterCommand]);
 
   useEffect(() => {
     loadClasses();
@@ -101,7 +110,6 @@ export const AnnotatePage: React.FC = () => {
   }, [selectedFilename, currentData, isLoadingData]);
 
   const handleSelect = useCallback(async (filename: string) => {
-    // Save-Before-Select Logic
     if (selectedFilename && !isLoadingData) {
         const currentDataJson = JSON.stringify(currentData);
         if (currentDataJson !== lastSavedDataJson.current) {
@@ -143,19 +151,16 @@ export const AnnotatePage: React.FC = () => {
     const nextSamples = samples.filter(s => s.filename !== filenameToDelete);
 
     try {
-        // Prevent auto-save from trying to save the deleted file
         lastSavedDataJson.current = JSON.stringify(currentData);
 
         await API.labels.delete(filenameToDelete);
 
-        // Update samples list locally (no re-fetch needed)
         setSamples(nextSamples);
 
         if (nextSamples.length > 0) {
             const nextIdx = currentIndex >= nextSamples.length ? nextSamples.length - 1 : currentIndex;
             const nextFilename = nextSamples[nextIdx].filename;
 
-            // Load next file data directly (skip handleSelect to avoid save-before-select on deleted file)
             setSelectedFilename(nextFilename);
             setSelectedBBoxIdx(null);
             try {
@@ -265,7 +270,7 @@ export const AnnotatePage: React.FC = () => {
 
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === 'INPUT') return;
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'SELECT') return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); handleUndo(); }
       if (e.key === 'ArrowRight') {
           const idx = samples.findIndex(s => s.filename === selectedFilename);
@@ -364,6 +369,44 @@ export const AnnotatePage: React.FC = () => {
                                         key={i}
                                         onClick={() => { setFilterClass(i); initialized.current = false; setIsFilterClassOpen(false); }}
                                         className={`w-full px-5 py-3 text-left text-sm font-black uppercase tracking-wider transition-colors border-t border-white/5 hover:bg-accent/10 ${filterClass === i ? 'bg-accent/20 text-accent' : 'text-white/60'}`}
+                                    >
+                                        {i}: {c}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="relative">
+                <button
+                    onClick={() => setIsFilterCommandOpen(!isFilterCommandOpen)}
+                    className="flex items-center gap-3 bg-white/10 border-2 border-white/20 text-white text-sm font-black rounded-xl px-5 py-2.5 hover:border-accent transition-all min-w-[180px] shadow-lg group"
+                >
+                    <Zap className={`w-4 h-4 transition-colors ${filterCommand !== null ? 'text-accent' : 'text-white/40'}`} />
+                    <span className="flex-1 text-left uppercase truncate">
+                        {filterCommand !== null ? `${filterCommand}: ${commands[filterCommand] || 'UNKNOWN'}` : 'ALL COMMANDS'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isFilterCommandOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isFilterCommandOpen && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsFilterCommandOpen(false)} />
+                        <div className="absolute top-full left-0 mt-2 w-full bg-[#0d0d15] border-2 border-accent/30 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="max-h-64 overflow-y-auto cyber-scrollbar py-2">
+                                <button
+                                    onClick={() => { setFilterCommand(null); initialized.current = false; setIsFilterCommandOpen(false); }}
+                                    className={`w-full px-5 py-3 text-left text-sm font-black uppercase tracking-wider transition-colors hover:bg-accent/10 ${filterCommand === null ? 'bg-accent/20 text-accent' : 'text-white/60'}`}
+                                >
+                                    ALL COMMANDS
+                                </button>
+                                {commands.map((c, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => { setFilterCommand(i); initialized.current = false; setIsFilterCommandOpen(false); }}
+                                        className={`w-full px-5 py-3 text-left text-sm font-black uppercase tracking-wider transition-colors border-t border-white/5 hover:bg-accent/10 ${filterCommand === i ? 'bg-accent/20 text-accent' : 'text-white/60'}`}
                                     >
                                         {i}: {c}
                                     </button>
@@ -489,13 +532,22 @@ export const AnnotatePage: React.FC = () => {
             </section>
 
             <section className="space-y-5">
-                <h3 className="text-sm text-white font-black uppercase tracking-[0.2em] font-cyber border-l-4 border-accent pl-4">Behavioral Logic</h3>
+                <div className="flex justify-between items-center">
+                    <h3 className="text-sm text-white font-black uppercase tracking-[0.2em] font-cyber border-l-4 border-accent pl-4">Behavioral Logic</h3>
+                    <button onClick={() => setIsCommandModalOpen(true)} className="text-white hover:text-accent transition-all hover:rotate-90"><Settings2 className="w-7 h-7" /></button>
+                </div>
                 <div className="relative">
-                    <select value={currentData.command} onChange={(e) => setCurrentData(prev => ({ ...prev, command: parseInt(e.target.value) }))} className="w-full bg-[#2a2a2c] border-2 border-white/30 rounded-2xl p-4 text-base text-white font-black outline-none focus:border-accent transition-all appearance-none cursor-pointer shadow-xl">
-                        <option value={0}>0: FOLLOW_LANE</option>
-                        <option value={1}>1: TURN_LEFT</option>
-                        <option value={2}>2: TURN_RIGHT</option>
-                        <option value={3}>3: STRAIGHT</option>
+                    <select
+                        value={currentData.command}
+                        onChange={(e) => {
+                            setCurrentData(prev => ({ ...prev, command: parseInt(e.target.value) }));
+                            e.target.blur();
+                        }}
+                        className="w-full bg-[#2a2a2c] border-2 border-white/30 rounded-2xl p-4 text-base text-white font-black outline-none focus:border-accent transition-all appearance-none cursor-pointer shadow-xl"
+                    >
+                        {commands.map((cmd, idx) => (
+                            <option key={idx} value={idx}>{idx}: {cmd}</option>
+                        ))}
                     </select>
                     <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-accent"><ChevronDown className="w-5 h-5" /></div>
                 </div>
@@ -574,6 +626,37 @@ export const AnnotatePage: React.FC = () => {
                 <div className="p-12 bg-white/[0.05] border-t border-white/10 flex gap-8">
                     <button onClick={() => setIsClassModalOpen(false)} className="flex-1 py-6 rounded-3xl border-2 border-white/20 text-white text-lg font-black hover:bg-white/5 transition-all uppercase tracking-widest">Abort</button>
                     <button onClick={async () => { try { await API.labels.updateClasses(projectId, classes); setIsClassModalOpen(false); } catch { alert("Failed to update classes"); } }} className="flex-1 py-6 rounded-3xl bg-accent text-black text-lg font-black shadow-[0_0_50px_rgba(0,255,65,0.5)] hover:scale-[1.03] transition-all uppercase tracking-widest">Commit_Schema</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {isCommandModalOpen && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
+            <div className="w-full max-w-2xl bg-[#0a0a0c] border-2 border-white/20 rounded-[3rem] overflow-hidden shadow-[0_0_150px_rgba(0,0,0,1)] animate-in zoom-in-95 duration-300">
+                <div className="p-10 border-b border-white/10 flex justify-between items-center bg-white/5">
+                    <h2 className="text-3xl font-black text-white flex items-center gap-5 font-cyber tracking-tighter"><Zap className="w-10 h-10 text-accent" /> COMMAND_CONFIG</h2>
+                    <button onClick={() => setIsCommandModalOpen(false)} className="p-4 hover:bg-white/10 rounded-full transition-colors text-white hover:text-white"><X className="w-10 h-10" /></button>
+                </div>
+                <div className="p-12 space-y-6 max-h-[600px] overflow-y-auto cyber-scrollbar">
+                    {commands.map((c, i) => (
+                        <div key={i} className="flex gap-5 group">
+                            <div className="w-20 flex items-center justify-center font-black text-lg text-accent bg-accent/10 rounded-3xl border-2 border-accent/20">#{i}</div>
+                            <input value={c} onChange={(e) => { const next = [...commands]; next[i] = e.target.value; setCommands(next); }} className="flex-1 bg-black border-2 border-white/20 rounded-3xl p-5 text-[18px] text-white font-black focus:border-accent outline-none transition-all shadow-inner" />
+                            <button onClick={() => {
+                                if (window.confirm(`Remove command "${c}"?`)) {
+                                    const next = [...commands];
+                                    next.splice(i, 1);
+                                    setCommands(next);
+                                }
+                            }} className="p-5 hover:bg-red-500/20 text-white hover:text-red-500 rounded-3xl transition-all border border-transparent hover:border-red-500/40"><X className="w-8 h-8" /></button>
+                        </div>
+                    ))}
+                    <button onClick={() => setCommands([...commands, "NEW_COMMAND"])} className="w-full p-6 rounded-[2rem] border-4 border-dashed border-white/10 text-white/60 hover:text-accent hover:border-accent/40 transition-all text-sm font-black uppercase tracking-[0.3em]">+ ADD_NEW_COMMAND</button>
+                </div>
+                <div className="p-12 bg-white/[0.05] border-t border-white/10 flex gap-8">
+                    <button onClick={() => setIsCommandModalOpen(false)} className="flex-1 py-6 rounded-3xl border-2 border-white/20 text-white text-lg font-black hover:bg-white/5 transition-all uppercase tracking-widest">Abort</button>
+                    <button onClick={async () => { try { await API.labels.updateCommands(projectId, commands); setIsCommandModalOpen(false); } catch { alert("Failed to update commands"); } }} className="flex-1 py-6 rounded-3xl bg-accent text-black text-lg font-black shadow-[0_0_50px_rgba(0,255,65,0.5)] hover:scale-[1.03] transition-all uppercase tracking-widest">Commit_Commands</button>
                 </div>
             </div>
         </div>

@@ -36,7 +36,7 @@ def get_analytics(project_id: int, service: LabelService = Depends(get_label_ser
 
 @router.post("/projects")
 def create_project(project: ProjectCreate, service: LabelService = Depends(get_label_service)):
-    return service.create_project(project.name, project.description, project.classes)
+    return service.create_project(project.name, project.description, project.classes, project.commands)
 
 @router.get("/stats")
 def get_stats(project_id: Optional[int] = None, service: LabelService = Depends(get_label_service)):
@@ -144,6 +144,14 @@ def get_classes(project_id: int, service: LabelService = Depends(get_label_servi
 @router.post("/projects/{project_id}/classes")
 def update_classes(project_id: int, classes: List[str], service: LabelService = Depends(get_label_service)):
     return service.project_repo.update_classes(project_id, classes)
+
+@router.get("/projects/{project_id}/commands")
+def get_commands(project_id: int, service: LabelService = Depends(get_label_service)):
+    return service.get_commands(project_id)
+
+@router.post("/projects/{project_id}/commands")
+def update_commands(project_id: int, commands: List[str], service: LabelService = Depends(get_label_service)):
+    return service.update_commands(project_id, commands)
 
 
 # --- DYNAMIC FILENAME ROUTES ---

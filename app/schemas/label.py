@@ -53,6 +53,7 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1)
     description: Optional[str] = None
     classes: Optional[List[str]] = None
+    commands: Optional[List[str]] = None
 
 class ProjectRead(ProjectCreate):
     id: int

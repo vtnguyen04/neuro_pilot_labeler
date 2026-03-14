@@ -15,10 +15,13 @@ ui/.env.local
 ui/.env.*.local
 
 # Storage & Data
+data/
+!data/.gitignore
 data/minio_data/
 data/labeler.db
 data/uploads/
 data/exports/
+data/labels/
 *.log
 
 # Docker

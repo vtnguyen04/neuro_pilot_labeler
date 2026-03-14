@@ -14,7 +14,6 @@ class LabelService:
 
     @property
     def repository(self):
-        """Compatibility property for legacy callers."""
         return self.sample_repo
 
     def get_projects(self):
@@ -37,8 +36,6 @@ class LabelService:
         return samples
 
     def _heal_data(self, data: dict) -> dict:
-        """Force-convert legacy data formats to modern object-based format."""
-        # 1. BBoxes Conversion
         bboxes = data.get('bboxes', [])
         categories = data.get('categories', [])
         healed_bboxes = []
@@ -46,10 +43,8 @@ class LabelService:
         if bboxes and len(bboxes) > 0:
             for i, b in enumerate(bboxes):
                 if isinstance(b, dict):
-                    # Already modern format
                     healed_bboxes.append(b)
                 elif isinstance(b, (list, tuple)) and len(b) >= 4:
-                    # Legacy list format [cx, cy, w, h]
                     cat = categories[i] if categories and i < len(categories) else 0
                     healed_bboxes.append({
                         "cx": b[0], "cy": b[1], "w": b[2], "h": b[3],
@@ -58,7 +53,6 @@ class LabelService:
                     })
         data['bboxes'] = healed_bboxes
 
-        # 2. Waypoints Conversion
         waypoints = data.get('waypoints', [])
         healed_waypoints = []
         if waypoints:
@@ -69,7 +63,6 @@ class LabelService:
                     healed_waypoints.append({"x": w[0], "y": w[1]})
         data['waypoints'] = healed_waypoints
 
-        # 3. Control Points Conversion
         cp = data.get('control_points', [])
         healed_cp = []
         if cp:
@@ -90,7 +83,6 @@ class LabelService:
         data_raw = row['data']
         data = json.loads(data_raw) if data_raw else {"bboxes":[], "waypoints":[], "command":0}
 
-        # Heal on read
         data = self._heal_data(data)
 
         return {
@@ -101,7 +93,6 @@ class LabelService:
         }
 
     def update_label(self, filename: str, update):
-        # Using model_dump() for Pydantic v2 compatibility
         label_data = {
             "bboxes": [b.model_dump() for b in update.bboxes],
             "waypoints": [w.model_dump() for w in update.waypoints],
@@ -109,10 +100,8 @@ class LabelService:
             "command": update.command
         }
 
-        # 1. Save to SQLite
         self.sample_repo.save_label(filename, label_data)
 
-        # 2. Export to YOLO format (NeuroPilot standard)
         sample = self.sample_repo.get_sample(filename)
         if sample:
             project_id = sample['project_id']
@@ -139,11 +128,8 @@ class LabelService:
 
         image_path = sample['image_path']
 
-        # 1. Delete from DB
         self.sample_repo.delete_sample(filename)
 
-        # 2. Feature Parity: Delete physical file if it is orphaned
-        # (meaning no other sample entry references the same image_path)
         ref_count = self.sample_repo.count_references_to_path(image_path)
         deleted_file = False
         if ref_count == 0:
@@ -155,7 +141,6 @@ class LabelService:
             except Exception as e:
                 print(f"Warning: Failed to delete physical file {image_path}: {e}")
 
-        # 3. Clean up sidecar JSON if it exists in processed
         try:
             json_path = Config.PROCESSED_DIR / (Path(filename).stem + ".json")
             if json_path.exists():
@@ -173,8 +158,8 @@ class LabelService:
         self.sample_repo.duplicate_sample(filename, new_filename)
         return {"status": "success", "new_image": new_filename}
 
-    def create_project(self, name: str, description: str = None, classes: List[str] = None):
-        return self.project_repo.create_project(name, description, classes)
+    def create_project(self, name: str, description: str = None, classes: List[str] = None, commands: List[str] = None):
+        return self.project_repo.create_project(name, description, classes, commands)
 
     def delete_project(self, project_id: int):
         self.sample_repo.delete_by_project(project_id)
@@ -239,9 +224,9 @@ class LabelService:
 
     def get_analytics(self, project_id: int):
         classes = self.project_repo.get_classes(project_id)
+        commands = self.project_repo.get_commands(project_id)
         raw_stats = self.sample_repo.get_analytics(project_id)
 
-        # 1. Map class IDs to names
         class_distribution = []
         for class_id, count in raw_stats['class_distribution'].items():
             if int(class_id) < len(classes):
@@ -252,35 +237,29 @@ class LabelService:
         class_distribution.sort(key=lambda x: x['count'], reverse=True)
         raw_stats['class_distribution'] = class_distribution
 
-        # 2. Map command IDs to names
-        COMMAND_NAMES = {
-            0: "FOLLOW_LANE",
-            1: "TURN_LEFT",
-            2: "TURN_RIGHT",
-            3: "STRAIGHT"
-        }
         command_distribution = []
         for cmd_id, count in raw_stats.get('command_distribution', {}).items():
-            name = COMMAND_NAMES.get(int(cmd_id), f"Unknown-{cmd_id}")
-            command_distribution.append({"id": int(cmd_id), "name": name, "count": count})
+            cmd_idx = int(cmd_id)
+            if cmd_idx < len(commands):
+                name = commands[cmd_idx]
+            else:
+                name = f"Unknown-{cmd_id}"
+            command_distribution.append({"id": cmd_idx, "name": name, "count": count})
         command_distribution.sort(key=lambda x: x['count'], reverse=True)
         raw_stats['command_distribution'] = command_distribution
 
         return raw_stats
 
+    def get_commands(self, project_id: int):
+        return self.project_repo.get_commands(project_id)
+
+    def update_commands(self, project_id: int, commands: List[str]):
+        return self.project_repo.update_commands(project_id, commands)
+
     def add_sample(self, filename: str, image_path: str, project_id: int):
         return self.sample_repo.add_sample(filename, image_path, project_id)
 
     def delete_batch(self, filenames: List[str]) -> dict:
-        """
-        Delete multiple samples at once (bulk delete).
-
-        Args:
-            filenames: List of filenames to delete
-
-        Returns:
-            dict with deletion statistics
-        """
         deleted_count = 0
         files_removed = 0
         errors = []
@@ -294,11 +273,9 @@ class LabelService:
 
                 image_path = sample['image_path']
 
-                # Delete from DB
                 self.sample_repo.delete_sample(filename)
                 deleted_count += 1
 
-                # Delete physical file if orphaned
                 ref_count = self.sample_repo.count_references_to_path(image_path)
                 if ref_count == 0:
                     try:
@@ -309,7 +286,6 @@ class LabelService:
                     except Exception as e:
                         errors.append(f"{filename}: failed to delete file - {e}")
 
-                # Clean up sidecar JSON
                 try:
                     json_path = Config.DATA_DIR / "processed" / (Path(filename).stem + ".json")
                     if json_path.exists():

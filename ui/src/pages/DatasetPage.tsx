@@ -110,6 +110,7 @@ export const DatasetPage: React.FC = () => {
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [classes, setClasses] = useState<string[]>([]);
+  const [commands, setCommands] = useState<string[]>([]);
   const [samples, setSamples] = useState<Sample[]>([]);
   const [filterClass, setFilterClass] = useState<number | null>(null);
   const [filterCommand, setFilterCommand] = useState<number | null>(null);
@@ -127,12 +128,14 @@ export const DatasetPage: React.FC = () => {
     if (loading) return;
     setLoading(true);
     try {
-        const [s, c] = await Promise.all([
+        const [s, c, cmd] = await Promise.all([
             API.labels.getStats(projectId),
-            API.labels.getClasses(projectId)
+            API.labels.getClasses(projectId),
+            API.labels.getCommands(projectId)
         ]);
         setStats(s);
         setClasses(c || []);
+        setCommands(cmd || []);
 
         const currentOffset = isLoadMore ? samples.length : 0;
         const list = await API.labels.list({
@@ -155,7 +158,7 @@ export const DatasetPage: React.FC = () => {
     } finally {
         setLoading(false);
     }
-  }, [projectId, filterStatus, filterClass, samples.length, loading]);
+  }, [projectId, filterStatus, filterClass, filterCommand, samples.length, loading]);
 
   useEffect(() => {
     loadData(false).catch(console.error);
@@ -317,10 +320,7 @@ export const DatasetPage: React.FC = () => {
                         onChange={(e) => setFilterCommand(e.target.value ? parseInt(e.target.value) : null)}
                     >
                         <option value="">ALL COMMANDS</option>
-                        <option value="0">FOLLOW_LANE</option>
-                        <option value="1">TURN_LEFT</option>
-                        <option value="2">TURN_RIGHT</option>
-                        <option value="3">STRAIGHT</option>
+                        {commands.map((cmd, i) => <option key={i} value={i}>{cmd}</option>)}
                     </select>
                 </div>
             </div>

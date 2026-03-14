@@ -46,8 +46,10 @@ export const API = {
       }),
     deleteProject: (projectId: number) => fetchJSON(`/labels/projects/${projectId}`, { method: 'DELETE' }),
     getClasses: (projectId: number) => fetchJSON<string[]>(`/labels/projects/${projectId}/classes`),
+    getCommands: (projectId: number) => fetchJSON<string[]>(`/labels/projects/${projectId}/commands`),
     deleteClass: (projectId: number, classIndex: number) => fetchJSON(`/labels/projects/${projectId}/classes/${classIndex}`, { method: 'DELETE' }),
     updateClasses: (projectId: number, classes: string[]) => fetchJSON(`/labels/projects/${projectId}/classes`, { method: 'POST', body: JSON.stringify(classes) }),
+    updateCommands: (projectId: number, commands: string[]) => fetchJSON(`/labels/projects/${projectId}/commands`, { method: 'POST', body: JSON.stringify(commands) }),
     getAnalytics: (projectId: number) =>
       fetchJSON<{
         class_distribution: { id: number, name: string, count: number }[],

@@ -97,8 +97,6 @@ class SampleRepository(BaseRepository):
         with self._get_connection() as conn:
             row = conn.execute("SELECT * FROM samples WHERE image_name = ?", (filename,)).fetchone()
             if row:
-                # Ensure we don't duplicate existing duplicate names improperly if we want clean history
-                # But here we just want to ensure it works.
                 try:
                     conn.execute(
                         "INSERT INTO samples (image_name, image_path, project_id, data, is_labeled) VALUES (?, ?, ?, ?, ?)",
@@ -106,7 +104,6 @@ class SampleRepository(BaseRepository):
                     )
                     conn.commit()
                 except sqlite3.IntegrityError:
-                    # Already exists? Just skip or update
                     pass
 
     def count_references_to_path(self, image_path: str) -> int:
@@ -149,7 +146,6 @@ class SampleRepository(BaseRepository):
             }
     def get_analytics(self, project_id: int):
         with self._get_connection() as conn:
-            # 1. Class Distribution
             class_dist_query = """
                 SELECT
                     json_extract(value, '$.category') as class_id,
@@ -161,7 +157,6 @@ class SampleRepository(BaseRepository):
             class_dist_rows = conn.execute(class_dist_query, (project_id,)).fetchall()
             class_dist = {row['class_id']: row['count'] for row in class_dist_rows}
 
-            # 2. Command Distribution
             cmd_dist_query = """
                 SELECT
                     json_extract(data, '$.command') as command_id,
@@ -173,7 +168,6 @@ class SampleRepository(BaseRepository):
             cmd_dist_rows = conn.execute(cmd_dist_query, (project_id,)).fetchall()
             cmd_dist = {row['command_id']: row['count'] for row in cmd_dist_rows if row['command_id'] is not None}
 
-            # 3. Annotation Stats
             stats_query = """
                 SELECT
                     COUNT(*) as total_samples,
@@ -185,7 +179,6 @@ class SampleRepository(BaseRepository):
             """
             stats_row = conn.execute(stats_query, (project_id,)).fetchone()
 
-            # 4. Samples with Waypoints
             wp_samples_query = """
                 SELECT COUNT(*)
                 FROM samples
