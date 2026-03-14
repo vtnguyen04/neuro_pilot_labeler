@@ -1,21 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.responses import FileResponse, StreamingResponse
-from typing import List, Optional
 import io
 import logging
 from pathlib import Path
 
-from ..schemas.label import LabelRead, LabelUpdate, ProjectCreate
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse, StreamingResponse
+
 from ..core.config import Config
-from ..core.storage.storage_provider import MinioStorageProvider
 from ..core.storage.hybrid_storage import HybridImageProvider
-
-from ..repositories.sample_repository import SampleRepository
-from ..repositories.project_repository import ProjectRepository
-
+from ..core.storage.storage_provider import MinioStorageProvider
+from ..domain.services.annotation_service import AnnotationService
 from ..domain.services.project_service import ProjectService
 from ..domain.services.sample_service import SampleService
-from ..domain.services.annotation_service import AnnotationService
+from ..repositories.project_repository import ProjectRepository
+from ..repositories.sample_repository import SampleRepository
+from ..schemas.label import LabelUpdate, ProjectCreate
 
 router = APIRouter(prefix="/api/v1/labels", tags=["labels"])
 logger = logging.getLogger("uvicorn")
@@ -30,7 +28,7 @@ def get_sample_repo(db_path=Depends(get_db_path)):
     return SampleRepository(db_path)
 
 def get_project_service(
-    project_repo=Depends(get_project_repo), 
+    project_repo=Depends(get_project_repo),
     sample_repo=Depends(get_sample_repo)
 ) -> ProjectService:
     return ProjectService(project_repo, sample_repo)
@@ -39,7 +37,7 @@ def get_sample_service(sample_repo=Depends(get_sample_repo)) -> SampleService:
     return SampleService(sample_repo)
 
 def get_annotation_service(
-    sample_repo=Depends(get_sample_repo), 
+    sample_repo=Depends(get_sample_repo),
     project_repo=Depends(get_project_repo)
 ) -> AnnotationService:
     return AnnotationService(sample_repo, project_repo)
@@ -77,7 +75,7 @@ def get_classes(project_id: int, service: ProjectService = Depends(get_project_s
     return service.get_classes(project_id)
 
 @router.post("/projects/{project_id}/classes")
-def update_classes(project_id: int, classes: List[str], service: ProjectService = Depends(get_project_service)):
+def update_classes(project_id: int, classes: list[str], service: ProjectService = Depends(get_project_service)):
     service.update_classes(project_id, classes)
     return {"status": "success"}
 
@@ -90,24 +88,24 @@ def get_commands(project_id: int, service: ProjectService = Depends(get_project_
     return service.get_commands(project_id)
 
 @router.post("/projects/{project_id}/commands")
-def update_commands(project_id: int, commands: List[str], service: ProjectService = Depends(get_project_service)):
+def update_commands(project_id: int, commands: list[str], service: ProjectService = Depends(get_project_service)):
     service.update_commands(project_id, commands)
     return {"status": "success"}
 
 
 @router.get("/stats")
-def get_stats(project_id: Optional[int] = None, service: SampleService = Depends(get_sample_service)):
+def get_stats(project_id: int | None = None, service: SampleService = Depends(get_sample_service)):
     return service.get_stats(project_id)
 
 @router.get("/")
 def list_labels(
-    limit: int = 100, 
-    offset: int = 0, 
-    is_labeled: Optional[bool] = None, 
-    split: Optional[str] = None, 
-    project_id: Optional[int] = None, 
-    class_id: Optional[int] = None, 
-    command: Optional[int] = None, 
+    limit: int = 100,
+    offset: int = 0,
+    is_labeled: bool | None = None,
+    split: str | None = None,
+    project_id: int | None = None,
+    class_id: int | None = None,
+    command: int | None = None,
     service: SampleService = Depends(get_sample_service)
 ):
     return service.get_samples(limit, offset, is_labeled, split, project_id, class_id, command)
@@ -115,7 +113,7 @@ def list_labels(
 
 @router.get("/image/{filename}")
 async def get_image(
-    filename: str, 
+    filename: str,
     sample_repo: SampleRepository = Depends(get_sample_repo),
     storage: HybridImageProvider = Depends(get_storage_provider)
 ):
@@ -125,15 +123,15 @@ async def get_image(
         import re
         base_filename = re.sub(r'_dup\d+', '', filename)
         sample = sample_repo.get_sample(base_filename)
-        
+
     if sample:
         sample_uri = sample.image_path
 
     result = storage.resolve_file_path(filename, sample_uri)
-    
+
     if result is None:
         raise HTTPException(status_code=404, detail="Image resource not found.")
-        
+
     if isinstance(result, bytes):
         return StreamingResponse(io.BytesIO(result), media_type="image/jpeg")
     elif isinstance(result, Path):

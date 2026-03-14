@@ -1,5 +1,7 @@
-from typing import List, Optional, Dict, Any, Union
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 
 class BBox(BaseModel):
     cx: float
@@ -7,7 +9,7 @@ class BBox(BaseModel):
     w: float
     h: float
     category: int
-    id: Optional[str] = None
+    id: str | None = None
 
 class Waypoint(BaseModel):
     x: float
@@ -15,12 +17,12 @@ class Waypoint(BaseModel):
 
 class LabelData(BaseModel):
     command: int = 0
-    bboxes: List[BBox] = Field(default_factory=list)
-    waypoints: List[Waypoint] = Field(default_factory=list)
-    control_points: List[Waypoint] = Field(default_factory=list)
+    bboxes: list[BBox] = Field(default_factory=list)
+    waypoints: list[Waypoint] = Field(default_factory=list)
+    control_points: list[Waypoint] = Field(default_factory=list)
 
     @classmethod
-    def create_and_heal(cls, raw_data: Union[str, Dict[str, Any]]) -> 'LabelData':
+    def create_and_heal(cls, raw_data: str | dict[str, Any]) -> 'LabelData':
         import json
         if isinstance(raw_data, str):
             try:
@@ -45,7 +47,7 @@ class LabelData(BaseModel):
                         "category": cat,
                         "id": f"heal_{i}"
                     })
-        
+
         raw_waypoints = data.get('waypoints', [])
         healed_waypoints = []
         if raw_waypoints:
@@ -70,12 +72,12 @@ class LabelData(BaseModel):
             "waypoints": healed_waypoints,
             "control_points": healed_cp
         }
-        
+
         return cls(**safe_data)
 
     def to_dict(self) -> dict:
         return self.model_dump()
-    
+
     def to_json_str(self) -> str:
         return self.model_dump_json()
 
@@ -92,8 +94,8 @@ class LabelData(BaseModel):
                 new_boxes.append(box)
             else:
                 new_boxes.append(box)
-        
+
         if modified:
             self.bboxes = new_boxes
-            
+
         return modified

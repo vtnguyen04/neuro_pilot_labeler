@@ -1,10 +1,13 @@
 import random
+
 import pytest
-from app.repositories.version_repository import VersionRepository
-from app.repositories.sample_repository import SampleRepository
-from app.repositories.project_repository import ProjectRepository
-from app.services.version_service import VersionService
+
 from app.core.config import Config
+from app.repositories.project_repository import ProjectRepository
+from app.repositories.sample_repository import SampleRepository
+from app.repositories.version_repository import VersionRepository
+from app.services.version_service import VersionService
+
 
 def test_publish_version():
     """Test publishing a new version of the dataset."""

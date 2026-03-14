@@ -1,20 +1,28 @@
 import json
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from ..interfaces.repository import IProjectRepository, ISampleRepository
 from ..models.project import Project
+
 
 class ProjectService:
     def __init__(self, project_repo: IProjectRepository, sample_repo: ISampleRepository):
         self.project_repo = project_repo
         self.sample_repo = sample_repo
 
-    def get_projects(self) -> List[Project]:
+    def get_projects(self) -> list[Project]:
         return self.project_repo.get_projects()
 
-    def get_project(self, project_id: int) -> Optional[Project]:
+    def get_project(self, project_id: int) -> Project | None:
         return self.project_repo.get_project(project_id)
 
-    def create_project(self, name: str, description: Optional[str] = None, classes: Optional[List[str]] = None, commands: Optional[List[str]] = None) -> int:
+    def create_project(
+        self,
+        name: str,
+        description: str | None = None,
+        classes: list[str] | None = None,
+        commands: list[str] | None = None
+    ) -> int:
         p = Project(
             name=name,
             description=description,
@@ -27,17 +35,17 @@ class ProjectService:
         self.sample_repo.delete_by_project(project_id)
         self.project_repo.delete_project(project_id)
 
-    def get_classes(self, project_id: int) -> List[str]:
+    def get_classes(self, project_id: int) -> list[str]:
         p = self.get_project(project_id)
         return p.classes if p else []
 
-    def update_classes(self, project_id: int, classes: List[str]) -> None:
+    def update_classes(self, project_id: int, classes: list[str]) -> None:
         p = self.get_project(project_id)
         if p:
             p.classes = classes
             self.project_repo.update_project(p)
 
-    def delete_class(self, project_id: int, class_index: int) -> Dict[str, Any]:
+    def delete_class(self, project_id: int, class_index: int) -> dict[str, Any]:
         p = self.get_project(project_id)
         if not p or class_index < 0 or class_index >= len(p.classes):
             return {"status": "error", "message": "Invalid class index"}
@@ -51,12 +59,12 @@ class ProjectService:
             data_str = row['data']
             if not data_str:
                 continue
-                
+
             try:
                 data = json.loads(data_str)
-            except:
+            except Exception:
                 continue
-                
+
             modified = False
             if "bboxes" in data:
                 new_boxes = []
@@ -76,27 +84,27 @@ class ProjectService:
                         new_boxes.append(box)
                 if modified:
                     data["bboxes"] = new_boxes
-                    
+
             if modified:
                 self.sample_repo.update_raw_sample_data(sample_id, json.dumps(data))
 
         return {"status": "success", "classes": p.classes}
 
-    def get_commands(self, project_id: int) -> List[str]:
+    def get_commands(self, project_id: int) -> list[str]:
         p = self.get_project(project_id)
         return p.commands if p else ["FOLLOW_LANE", "TURN_LEFT", "TURN_RIGHT", "STRAIGHT"]
 
-    def update_commands(self, project_id: int, commands: List[str]) -> None:
+    def update_commands(self, project_id: int, commands: list[str]) -> None:
         p = self.get_project(project_id)
         if p:
             p.commands = commands
             self.project_repo.update_project(p)
 
-    def get_analytics(self, project_id: int) -> Dict[str, Any]:
+    def get_analytics(self, project_id: int) -> dict[str, Any]:
         p = self.get_project(project_id)
         classes = p.classes if p else []
         commands = p.commands if p else []
-        
+
         raw_stats = self.sample_repo.get_analytics(project_id)
 
         class_distribution = []

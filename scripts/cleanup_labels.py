@@ -1,6 +1,6 @@
-import sqlite3
 import json
 import os
+import sqlite3
 
 DB_PATH = "/home/quynhthu/Documents/AI-project/e2e/tools/labeler/data/labeler.db"
 PROJECT_ID = 12 # BFMC
@@ -44,7 +44,7 @@ def cleanup():
     conn.commit()
     conn.close()
 
-    print(f"\nCleanup finished!")
+    print("\nCleanup finished!")
     print(f"Total labeled samples scanned: {total}")
     print(f"Samples reset to TODO: {reset_count}")
 

@@ -1,6 +1,7 @@
 import sqlite3
 from abc import ABC
 
+
 class BaseRepository(ABC):
     def __init__(self, db_path: str):
         self.db_path = db_path

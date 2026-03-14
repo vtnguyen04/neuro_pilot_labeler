@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 class Config:
     PROJECT_NAME = "NeuroPilot Labeler Pro"
     BASE_DIR = Path(__file__).resolve().parent.parent.parent  # tools/labeler/

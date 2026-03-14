@@ -1,11 +1,12 @@
+
 from fastapi import APIRouter, Depends, HTTPException
-from typing import List, Optional
+
+from ..core.config import Config
+from ..repositories.project_repository import ProjectRepository
+from ..repositories.sample_repository import SampleRepository
+from ..repositories.version_repository import VersionRepository
 from ..schemas.label import VersionCreate
 from ..services.version_service import VersionService
-from ..repositories.version_repository import VersionRepository
-from ..repositories.sample_repository import SampleRepository
-from ..repositories.project_repository import ProjectRepository
-from ..core.config import Config
 
 router = APIRouter(prefix="/api/v1/versions", tags=["versions"])
 
@@ -18,7 +19,7 @@ def get_version_service():
 
 @router.get("/")
 def list_versions(
-    project_id: Optional[int] = None,
+    project_id: int | None = None,
     service: VersionService = Depends(get_version_service)
 ):
     return service.list_versions(project_id)
@@ -64,8 +65,9 @@ def download_version(
     service: VersionService = Depends(get_version_service)
 ):
     try:
-        from fastapi.responses import FileResponse
         import os
+
+        from fastapi.responses import FileResponse
         zip_path = service.create_zip(version_id)
         return FileResponse(zip_path, media_type='application/zip', filename=os.path.basename(zip_path))
     except Exception as e:

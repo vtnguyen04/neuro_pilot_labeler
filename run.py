@@ -1,8 +1,8 @@
-import uvicorn
-import sys
-import os
 import subprocess
+import sys
 from pathlib import Path
+
+import uvicorn
 
 root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(root))

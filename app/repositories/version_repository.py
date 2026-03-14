@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Optional
+
 
 class VersionRepository:
     def __init__(self, db_path: str):
@@ -100,15 +100,18 @@ class VersionRepository:
             )
             return cursor.lastrowid
 
-    def list_versions(self, project_id: Optional[int] = None) -> List[dict]:
+    def list_versions(self, project_id: int | None = None) -> list[dict]:
         with self._get_connection() as conn:
             if project_id:
-                rows = conn.execute("SELECT * FROM dataset_versions WHERE project_id = ? ORDER BY created_at DESC", (project_id,)).fetchall()
+                rows = conn.execute(
+                    "SELECT * FROM dataset_versions WHERE project_id = ? ORDER BY created_at DESC",
+                    (project_id,)
+                ).fetchall()
             else:
                 rows = conn.execute("SELECT * FROM dataset_versions ORDER BY created_at DESC").fetchall()
             return [dict(row) for row in rows]
 
-    def get_version(self, version_id: int) -> Optional[dict]:
+    def get_version(self, version_id: int) -> dict | None:
         with self._get_connection() as conn:
             row = conn.execute("SELECT * FROM dataset_versions WHERE id = ?", (version_id,)).fetchone()
             return dict(row) if row else None

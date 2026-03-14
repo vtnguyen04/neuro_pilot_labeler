@@ -1,10 +1,10 @@
-import json
 import sqlite3
-from typing import List, Optional, Dict, Any
-from .base_repository import BaseRepository
+from typing import Any
+
 from ..domain.interfaces.repository import ISampleRepository
 from ..domain.models.sample import Sample
-from ..domain.models.label import LabelData
+from .base_repository import BaseRepository
+
 
 class SampleRepository(BaseRepository, ISampleRepository):
     def _init_db(self):
@@ -23,9 +23,9 @@ class SampleRepository(BaseRepository, ISampleRepository):
             conn.execute("CREATE INDEX IF NOT EXISTS idx_is_labeled ON samples(is_labeled)")
             conn.commit()
 
-    def get_all_samples(self, limit: int = 100, offset: int = 0, is_labeled: Optional[bool] = None,
-                       split: Optional[str] = None, project_id: Optional[int] = None,
-                       class_id: Optional[int] = None, command: Optional[int] = None) -> List[Sample]:
+    def get_all_samples(self, limit: int = 100, offset: int = 0, is_labeled: bool | None = None,
+                       split: str | None = None, project_id: int | None = None,
+                       class_id: int | None = None, command: int | None = None) -> list[Sample]:
         query = "SELECT image_name as filename, is_labeled, updated_at, data, image_path, project_id FROM samples"
         where_clauses = []
         params = []
@@ -43,7 +43,10 @@ class SampleRepository(BaseRepository, ISampleRepository):
             params.append(project_id)
 
         if class_id is not None:
-            where_clauses.append("EXISTS (SELECT 1 FROM json_each(data, '$.bboxes') WHERE json_extract(value, '$.category') = ?)")
+            where_clauses.append(
+                "EXISTS (SELECT 1 FROM json_each(data, '$.bboxes') "
+                "WHERE json_extract(value, '$.category') = ?)"
+            )
             params.append(class_id)
 
         if command is not None:
@@ -60,9 +63,12 @@ class SampleRepository(BaseRepository, ISampleRepository):
             rows = conn.execute(query, params).fetchall()
             return [Sample.from_row(dict(row)) for row in rows]
 
-    def get_sample(self, filename: str) -> Optional[Sample]:
+    def get_sample(self, filename: str) -> Sample | None:
         with self._get_connection() as conn:
-            row = conn.execute("SELECT image_name as filename, * FROM samples WHERE image_name = ?", (filename,)).fetchone()
+            row = conn.execute(
+                "SELECT image_name as filename, * FROM samples WHERE image_name = ?",
+                (filename,)
+            ).fetchone()
             if not row:
                 return None
             return Sample.from_row(dict(row))
@@ -70,8 +76,15 @@ class SampleRepository(BaseRepository, ISampleRepository):
     def add_sample(self, sample: Sample) -> None:
         with self._get_connection() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO samples (image_name, image_path, project_id, data, is_labeled) VALUES (?, ?, ?, ?, ?)",
-                (sample.filename, sample.image_path, sample.project_id, sample.label_data.to_json_str(), 1 if sample.is_labeled else 0)
+                "INSERT OR IGNORE INTO samples (image_name, image_path, project_id, data, is_labeled) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (
+                    sample.filename,
+                    sample.image_path,
+                    sample.project_id,
+                    sample.label_data.to_json_str(),
+                    1 if sample.is_labeled else 0
+                )
             )
             conn.commit()
 
@@ -94,7 +107,8 @@ class SampleRepository(BaseRepository, ISampleRepository):
             if row:
                 try:
                     conn.execute(
-                        "INSERT INTO samples (image_name, image_path, project_id, data, is_labeled) VALUES (?, ?, ?, ?, ?)",
+                        "INSERT INTO samples (image_name, image_path, project_id, data, is_labeled) "
+                        "VALUES (?, ?, ?, ?, ?)",
                         (new_filename, row['image_path'], row['project_id'], row['data'], row['is_labeled'])
                     )
                     conn.commit()
@@ -111,9 +125,9 @@ class SampleRepository(BaseRepository, ISampleRepository):
             conn.execute("DELETE FROM samples WHERE project_id = ?", (project_id,))
             conn.commit()
 
-    def get_stats(self, project_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_stats(self, project_id: int | None = None) -> dict[str, Any]:
         with self._get_connection() as conn:
-            def get_count(split: Optional[str] = None, labeled: Optional[bool] = None):
+            def get_count(split: str | None = None, labeled: bool | None = None):
                 q = "SELECT COUNT(*) FROM samples"
                 clauses = []
                 p = []
@@ -140,7 +154,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
                 "total": get_count()
             }
 
-    def get_analytics(self, project_id: int) -> Dict[str, Any]:
+    def get_analytics(self, project_id: int) -> dict[str, Any]:
         with self._get_connection() as conn:
             class_dist_query = """
                 SELECT
@@ -192,9 +206,12 @@ class SampleRepository(BaseRepository, ISampleRepository):
                 "samples_with_waypoints": wp_samples
             }
 
-    def get_raw_samples_for_project(self, project_id: int) -> List[Dict[str, Any]]:
+    def get_raw_samples_for_project(self, project_id: int) -> list[dict[str, Any]]:
         with self._get_connection() as conn:
-            rows = conn.execute("SELECT rowid as id, data FROM samples WHERE project_id = ? AND data IS NOT NULL", (project_id,)).fetchall()
+            rows = conn.execute(
+                "SELECT rowid as id, data FROM samples WHERE project_id = ? AND data IS NOT NULL",
+                (project_id,)
+            ).fetchall()
             return [dict(r) for r in rows]
 
     def update_raw_sample_data(self, sample_id: int, raw_data_str: str) -> None:

@@ -1,15 +1,15 @@
 import os
-import shutil
 import random
-import json
-from pathlib import Path
-from typing import Optional, List
+import shutil
 from concurrent.futures import ThreadPoolExecutor
-from ..repositories.version_repository import VersionRepository
-from ..repositories.sample_repository import SampleRepository
-from ..repositories.project_repository import ProjectRepository
+from pathlib import Path
+
 from ..core.config import Config
+from ..repositories.project_repository import ProjectRepository
+from ..repositories.sample_repository import SampleRepository
+from ..repositories.version_repository import VersionRepository
 from ..utils.yolo_utils import save_yolo_label
+
 
 class VersionService:
     def __init__(self, version_repo: VersionRepository, sample_repo: SampleRepository, project_repo: ProjectRepository):
@@ -17,7 +17,7 @@ class VersionService:
         self.sample_repo = sample_repo
         self.project_repo = project_repo
 
-    def list_versions(self, project_id: Optional[int] = None):
+    def list_versions(self, project_id: int | None = None):
         return self.version_repo.list_versions(project_id)
 
     def delete_version(self, version_id: int):
@@ -34,19 +34,26 @@ class VersionService:
                 except Exception as e:
                     print(f"Warning: Failed to delete physical directory {export_path}: {e}")
             else:
-                print(f"Info: Skipping directory deletion for version {version_id}, path {path_str} is invalid or non-existent")
+                print(
+                    f"Info: Skipping directory deletion for version {version_id}, "
+                    f"path {path_str} is invalid or non-existent"
+                )
 
         self.version_repo.delete_version(version_id)
         return {"status": "deleted"}
 
     def publish_version(self, name: str, description: str, project_id: int,
                         train_ratio: float = 0.8, val_ratio: float = 0.1, test_ratio: float = 0.1,
-                        resize_width: Optional[int] = None, resize_height: Optional[int] = None):
+                        resize_width: int | None = None, resize_height: int | None = None):
+        all_samples = self.sample_repo.get_all_samples(limit=1000000, is_labeled=True, project_id=project_id)
+        if not all_samples:
+            raise ValueError("No labeled samples found for this project")
+
         try:
             from ..core.storage.storage_provider import MinioStorageProvider
         except ImportError:
-            if any(s.get('image_path', '').startswith("minio://") for s in all_samples):
-                raise ImportError("The 'minio' package is required for samples with 'minio://' paths. Please install it with 'uv add minio'.")
+            if any(s.image_path.startswith("minio://") for s in all_samples):
+                raise ImportError("The 'minio' package is required. Please install it with 'uv add minio'.")
             MinioStorageProvider = None
 
         if MinioStorageProvider:
@@ -60,13 +67,13 @@ class VersionService:
         else:
             storage = None
 
-        all_samples = self.sample_repo.get_all_samples(limit=1000000, is_labeled=True, project_id=project_id)
-        if not all_samples:
-            raise ValueError("No labeled samples found for this project")
-
         classes = self.project_repo.get_classes(project_id)
         if not classes:
-            classes = ["Stop", "Obstacle", "Pedestrian", "Car", "Priority", "Crosswalk", "Oneway", "Stop-Line", "Parking", "Highway-Entry", "Roundabout", "Highway-Exit", "Traffic-Light", "No-Entry"]
+            classes = [
+                "Stop", "Obstacle", "Pedestrian", "Car", "Priority", "Crosswalk", "Oneway",
+                "Stop-Line", "Parking", "Highway-Entry", "Roundabout", "Highway-Exit",
+                "Traffic-Light", "No-Entry"
+            ]
 
         version_dir = Config.EXPORT_DIR / f"project_{project_id}" / name
         version_dir.mkdir(parents=True, exist_ok=True)
@@ -92,15 +99,18 @@ class VersionService:
         for cat_id, samples in class_groups.items():
             random.shuffle(samples)
             n = len(samples)
-            if n == 0: continue
-            
+            if n == 0:
+                continue
+
             n_train = int(round(n * train_ratio))
             n_val = int(round(n * val_ratio))
-            
+
             if n_train + n_val > n:
-                if n_val > 0: n_val = n - n_train
-                else: n_train = n
-            
+                if n_val > 0:
+                    n_val = n - n_train
+                else:
+                    n_train = n
+
             if test_ratio <= 0:
                 n_test = 0
                 if n_train + n_val < n:
@@ -120,8 +130,9 @@ class VersionService:
                 tasks.append((split, s))
 
         def process_item(item):
-            from PIL import Image
             import io
+
+            from PIL import Image
             split, s = item
             filename = s.filename
             label_data = s.label_data
@@ -178,7 +189,7 @@ class VersionService:
                 flat_wps = []
                 for wp in label_data.waypoints:
                     flat_wps.extend([wp.x, wp.y])
-                
+
                 if len(flat_wps) >= 2:
                     kpts_list.append(flat_wps)
                     bboxes_list.append([0.5, 0.5, 0.1, 0.1])
@@ -202,10 +213,13 @@ class VersionService:
             'nc': len(classes),
             'names': classes
         }
-        if train_samples: yaml_content['train'] = 'train/images'
-        if val_samples: yaml_content['val'] = 'val/images'
-        if test_samples: yaml_content['test'] = 'test/images'
-        
+        if train_samples:
+            yaml_content['train'] = 'train/images'
+        if val_samples:
+            yaml_content['val'] = 'val/images'
+        if test_samples:
+            yaml_content['test'] = 'test/images'
+
         with open(version_dir / 'data.yaml', 'w') as f:
             import yaml
             yaml.dump(yaml_content, f)
@@ -228,7 +242,7 @@ class VersionService:
         shutil.make_archive(str(version_dir), 'zip', version_dir)
         return str(zip_path)
 
-    def _find_image(self, filename: str, hint_path: Optional[str] = None) -> Optional[Path]:
+    def _find_image(self, filename: str, hint_path: str | None = None) -> Path | None:
         if hint_path and os.path.exists(hint_path):
             return Path(hint_path)
         for d in [Config.RAW_DIR, Config.TRAIN_DIR, Config.VAL_DIR, Config.TEST_DIR]:

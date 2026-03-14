@@ -1,36 +1,33 @@
-import cv2
-import os
-import shutil
 import tempfile
-import time
 import uuid
 import zipfile
 from pathlib import Path
-from typing import List
+
+import cv2
 from fastapi import UploadFile
 
 from app.core.config import Config
-from app.repositories.sample_repository import SampleRepository
-from app.repositories.project_repository import ProjectRepository
 from app.core.storage.storage_provider import StorageProvider
-from app.domain.models.sample import Sample
 from app.domain.models.label import LabelData
+from app.domain.models.sample import Sample
+from app.repositories.project_repository import ProjectRepository
+from app.repositories.sample_repository import SampleRepository
 
 
 class UploadService:
     def __init__(
-        self, 
-        sample_repo: SampleRepository, 
-        project_repo: ProjectRepository, 
+        self,
+        sample_repo: SampleRepository,
+        project_repo: ProjectRepository,
         storage: StorageProvider
     ):
         self.sample_repo = sample_repo
         self.project_repo = project_repo
         self.storage = storage
-        
+
         Config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    async def upload_images(self, files: List[UploadFile], project_id: int) -> dict:
+    async def upload_images(self, files: list[UploadFile], project_id: int) -> dict:
         uploaded = []
 
         for file in files:
@@ -84,7 +81,7 @@ class UploadService:
                     video_base = Path(file.filename).stem
                     frame_name = f"{video_base}_frame_{frame_idx:06d}.jpg"
                     unique_name = f"{uuid.uuid4().hex[:8]}_{frame_name}"
-                    
+
                     _, buffer = cv2.imencode('.jpg', frame)
                     frame_bytes = buffer.tobytes()
 
@@ -162,7 +159,7 @@ class UploadService:
             yaml_path = Path(tmp_dir) / "data.yaml"
             if yaml_path.exists():
                 import yaml
-                with open(yaml_path, 'r') as f:
+                with open(yaml_path) as f:
                     yaml_data = yaml.safe_load(f)
                     if 'names' in yaml_data:
                         class_names = yaml_data['names']

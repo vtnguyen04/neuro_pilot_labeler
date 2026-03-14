@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Union
 from pathlib import Path
+
 
 class IStorageProvider(ABC):
     @abstractmethod
@@ -8,9 +8,9 @@ class IStorageProvider(ABC):
         pass
 
     @abstractmethod
-    def get_object(self, object_name: str) -> Optional[bytes]:
+    def get_object(self, object_name: str) -> bytes | None:
         pass
-        
+
     @abstractmethod
-    def resolve_file_path(self, filename: str, sample_uri: Optional[str] = None) -> Optional[Union[bytes, Path]]:
+    def resolve_file_path(self, filename: str, sample_uri: str | None = None) -> bytes | Path | None:
         pass

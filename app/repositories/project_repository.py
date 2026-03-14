@@ -1,9 +1,9 @@
 import json
-from typing import List, Optional
-from datetime import datetime
-from .base_repository import BaseRepository
+
 from ..domain.interfaces.repository import IProjectRepository
 from ..domain.models.project import Project
+from .base_repository import BaseRepository
+
 
 class ProjectRepository(BaseRepository, IProjectRepository):
     def _init_db(self):
@@ -23,7 +23,10 @@ class ProjectRepository(BaseRepository, IProjectRepository):
             if 'classes' not in cols:
                 conn.execute("ALTER TABLE projects ADD COLUMN classes TEXT DEFAULT '[]'")
             if 'commands' not in cols:
-                conn.execute("ALTER TABLE projects ADD COLUMN commands TEXT DEFAULT '[\"FOLLOW_LANE\", \"TURN_LEFT\", \"TURN_RIGHT\", \"STRAIGHT\"]'")
+                conn.execute(
+                    "ALTER TABLE projects ADD COLUMN commands TEXT DEFAULT "
+                    "'[\"FOLLOW_LANE\", \"TURN_LEFT\", \"TURN_RIGHT\", \"STRAIGHT\"]'"
+                )
             conn.commit()
 
     def _row_to_entity(self, row: dict) -> Project:
@@ -31,7 +34,7 @@ class ProjectRepository(BaseRepository, IProjectRepository):
             classes = json.loads(row.get('classes', '[]'))
         except json.JSONDecodeError:
             classes = []
-            
+
         try:
             commands = json.loads(row.get('commands', '[]'))
             if not commands:
@@ -58,12 +61,12 @@ class ProjectRepository(BaseRepository, IProjectRepository):
             conn.commit()
             return project_id
 
-    def get_projects(self) -> List[Project]:
+    def get_projects(self) -> list[Project]:
         with self._get_connection() as conn:
             rows = conn.execute("SELECT * FROM projects").fetchall()
             return [self._row_to_entity(dict(row)) for row in rows]
 
-    def get_project(self, project_id: int) -> Optional[Project]:
+    def get_project(self, project_id: int) -> Project | None:
         with self._get_connection() as conn:
             row = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
             if not row:
@@ -78,29 +81,35 @@ class ProjectRepository(BaseRepository, IProjectRepository):
     def update_project(self, project: Project) -> None:
         if project.id is None:
             raise ValueError("Cannot update a project without an ID")
-            
+
         with self._get_connection() as conn:
             conn.execute(
-                "UPDATE projects SET name = ?, description = ?, classes = ?, commands = ? WHERE id = ?", 
-                (project.name, project.description, json.dumps(project.classes), json.dumps(project.commands), project.id)
+                "UPDATE projects SET name = ?, description = ?, classes = ?, commands = ? WHERE id = ?",
+                (
+                    project.name,
+                    project.description,
+                    json.dumps(project.classes),
+                    json.dumps(project.commands),
+                    project.id
+                )
             )
             conn.commit()
 
-    def get_classes(self, project_id: int) -> List[str]:
+    def get_classes(self, project_id: int) -> list[str]:
         p = self.get_project(project_id)
         return p.classes if p else []
 
-    def update_classes(self, project_id: int, classes: List[str]):
+    def update_classes(self, project_id: int, classes: list[str]):
         p = self.get_project(project_id)
         if p:
             p.classes = classes
             self.update_project(p)
 
-    def get_commands(self, project_id: int) -> List[str]:
+    def get_commands(self, project_id: int) -> list[str]:
         p = self.get_project(project_id)
         return p.commands if p else ["FOLLOW_LANE", "TURN_LEFT", "TURN_RIGHT", "STRAIGHT"]
 
-    def update_commands(self, project_id: int, commands: List[str]):
+    def update_commands(self, project_id: int, commands: list[str]):
         p = self.get_project(project_id)
         if p:
             p.commands = commands

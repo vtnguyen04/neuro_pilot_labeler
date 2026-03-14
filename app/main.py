@@ -1,10 +1,12 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from .routers import label_router, version_router, upload_router
+from fastapi.staticfiles import StaticFiles
+
 from .core.config import Config
-from pathlib import Path
+from .routers import label_router, upload_router, version_router
 
 app = FastAPI(title=Config.PROJECT_NAME)
 

@@ -11,15 +11,14 @@ Format:
   - Other classes = regular bboxes
 """
 from pathlib import Path
-from typing import List, Tuple, Optional
 
 
 def save_yolo_label(
     path: Path,
-    cls: List[int],
-    bboxes: List[List[float]],
-    keypoints: Optional[List[List[float]]] = None,
-    command: Optional[int] = None
+    cls: list[int],
+    bboxes: list[list[float]],
+    keypoints: list[list[float]] | None = None,
+    command: int | None = None
 ) -> None:
     """
     Save labels in YOLO format.
@@ -50,7 +49,7 @@ def save_yolo_label(
             f.write(line + '\n')
 
 
-def parse_yolo_label(path: Path) -> Tuple[List[int], List[List[float]], List[List[float]], Optional[int]]:
+def parse_yolo_label(path: Path) -> tuple[list[int], list[list[float]], list[list[float]], int | None]:
     """
     Parse YOLO format label file.
 
@@ -72,7 +71,7 @@ def parse_yolo_label(path: Path) -> Tuple[List[int], List[List[float]], List[Lis
     if not path.exists():
         return class_ids, bboxes, keypoints, command
 
-    with open(path, 'r') as f:
+    with open(path) as f:
         for line in f:
             parts = line.strip().split()
             if len(parts) < 2:

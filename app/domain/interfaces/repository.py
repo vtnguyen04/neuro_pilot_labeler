@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import Any
+
 from ..models.project import Project
 from ..models.sample import Sample
+
 
 class IProjectRepository(ABC):
     @abstractmethod
@@ -9,11 +11,11 @@ class IProjectRepository(ABC):
         pass
 
     @abstractmethod
-    def get_projects(self) -> List[Project]:
+    def get_projects(self) -> list[Project]:
         pass
 
     @abstractmethod
-    def get_project(self, project_id: int) -> Optional[Project]:
+    def get_project(self, project_id: int) -> Project | None:
         pass
 
     @abstractmethod
@@ -27,13 +29,13 @@ class IProjectRepository(ABC):
 
 class ISampleRepository(ABC):
     @abstractmethod
-    def get_all_samples(self, limit: int = 100, offset: int = 0, is_labeled: Optional[bool] = None,
-                       split: Optional[str] = None, project_id: Optional[int] = None,
-                       class_id: Optional[int] = None, command: Optional[int] = None) -> List[Sample]:
+    def get_all_samples(self, limit: int = 100, offset: int = 0, is_labeled: bool | None = None,
+                       split: str | None = None, project_id: int | None = None,
+                       class_id: int | None = None, command: int | None = None) -> list[Sample]:
         pass
 
     @abstractmethod
-    def get_sample(self, filename: str) -> Optional[Sample]:
+    def get_sample(self, filename: str) -> Sample | None:
         pass
 
     @abstractmethod
@@ -57,15 +59,15 @@ class ISampleRepository(ABC):
         pass
 
     @abstractmethod
-    def get_stats(self, project_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_stats(self, project_id: int | None = None) -> dict[str, Any]:
         pass
 
     @abstractmethod
-    def get_analytics(self, project_id: int) -> Dict[str, Any]:
+    def get_analytics(self, project_id: int) -> dict[str, Any]:
         pass
 
     @abstractmethod
-    def get_raw_samples_for_project(self, project_id: int) -> List[Dict[str, Any]]:
+    def get_raw_samples_for_project(self, project_id: int) -> list[dict[str, Any]]:
         pass
 
     @abstractmethod

@@ -1,12 +1,12 @@
 """Upload router for handling file uploads."""
-from fastapi import APIRouter, File, Form, UploadFile, Depends
-from typing import List
 
-from app.services.upload_service import UploadService
+from fastapi import APIRouter, Depends, File, Form, UploadFile
+
 from app.core.config import Config
-from app.repositories.sample_repository import SampleRepository
-from app.repositories.project_repository import ProjectRepository
 from app.core.storage.storage_provider import MinioStorageProvider
+from app.repositories.project_repository import ProjectRepository
+from app.repositories.sample_repository import SampleRepository
+from app.services.upload_service import UploadService
 
 router = APIRouter(prefix="/api/v1/upload", tags=["upload"])
 
@@ -28,7 +28,7 @@ def get_upload_service():
 @router.post("/images")
 async def upload_images(
     project_id: int = Form(...),
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     service: UploadService = Depends(get_upload_service)
 ):
     """Upload multiple images to a project."""

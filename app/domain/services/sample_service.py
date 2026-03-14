@@ -1,21 +1,22 @@
-from typing import List, Optional, Dict, Any
-from pathlib import Path
 import os
+from pathlib import Path
+from typing import Any
+
 from ..interfaces.repository import ISampleRepository
-from ..models.sample import Sample
+
 
 class SampleService:
     def __init__(self, sample_repo: ISampleRepository):
         self.sample_repo = sample_repo
 
-    def get_stats(self, project_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_stats(self, project_id: int | None = None) -> dict[str, Any]:
         return self.sample_repo.get_stats(project_id)
 
-    def get_samples(self, limit: int = 100, offset: int = 0, is_labeled: Optional[bool] = None,
-                    split: Optional[str] = None, project_id: Optional[int] = None,
-                    class_id: Optional[int] = None, command: Optional[int] = None) -> List[dict]:
+    def get_samples(self, limit: int = 100, offset: int = 0, is_labeled: bool | None = None,
+                    split: str | None = None, project_id: int | None = None,
+                    class_id: int | None = None, command: int | None = None) -> list[dict]:
         samples = self.sample_repo.get_all_samples(limit, offset, is_labeled, split, project_id, class_id, command)
-        
+
         result = []
         for s in samples:
             item = {
@@ -26,10 +27,10 @@ class SampleService:
             }
             item.update(s.label_data.to_dict())
             result.append(item)
-            
+
         return result
 
-    def delete_sample(self, filename: str) -> Dict[str, Any]:
+    def delete_sample(self, filename: str) -> dict[str, Any]:
         sample = self.sample_repo.get_sample(filename)
         if not sample:
             return {"status": "error", "message": "Sample not found"}
@@ -59,7 +60,7 @@ class SampleService:
 
         return {"status": "deleted", "physical_file_removed": deleted_file}
 
-    def delete_batch(self, filenames: List[str]) -> Dict[str, Any]:
+    def delete_batch(self, filenames: list[str]) -> dict[str, Any]:
         deleted_count = 0
         files_removed = 0
         errors = []

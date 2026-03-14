@@ -1,12 +1,10 @@
-import io
+import logging
 import re
 from pathlib import Path
-from typing import Optional, Union
-import logging
 
-from .storage_provider import StorageProvider
 from ...domain.interfaces.storage import IStorageProvider
 from ..config import Config
+from .storage_provider import StorageProvider
 
 logger = logging.getLogger("uvicorn")
 
@@ -17,10 +15,10 @@ class HybridImageProvider(IStorageProvider):
     def save_file(self, content: bytes, filename: str) -> str:
         return self.minio.save_file(content, filename)
 
-    def get_object(self, object_name: str) -> Optional[bytes]:
+    def get_object(self, object_name: str) -> bytes | None:
         return self.minio.get_object(object_name)
 
-    def resolve_file_path(self, filename: str, sample_uri: Optional[str] = None) -> Optional[Union[bytes, Path]]:
+    def resolve_file_path(self, filename: str, sample_uri: str | None = None) -> bytes | Path | None:
         base_filename = re.sub(r'_dup\d+', '', filename)
         for name in [filename, base_filename]:
             try:

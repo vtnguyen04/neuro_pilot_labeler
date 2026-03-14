@@ -1,5 +1,5 @@
-import sqlite3
 import json
+import sqlite3
 
 DB_PATH = "/home/quynhthu/Documents/AI-project/e2e/tools/labeler/data/labeler.db"
 PROJECT_ID = 12

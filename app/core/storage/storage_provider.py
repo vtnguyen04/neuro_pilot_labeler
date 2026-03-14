@@ -1,5 +1,6 @@
-from abc import ABC, abstractmethod
 import io
+from abc import ABC, abstractmethod
+
 
 class StorageProvider(ABC):
     @abstractmethod
@@ -22,7 +23,10 @@ class MinioStorageProvider(StorageProvider):
         try:
             from minio import Minio
         except ImportError:
-            raise ImportError("The 'minio' library is required for MinioStorageProvider. Install it with 'pip install minio'.")
+            raise ImportError(
+                "The 'minio' library is required for MinioStorageProvider. "
+                "Install it with 'pip install minio'."
+            )
 
         self.client = Minio(
             endpoint,

@@ -1,7 +1,10 @@
-from typing import Optional, Union, Dict, Any
 from datetime import datetime
+from typing import Any
+
 from pydantic import BaseModel, Field
+
 from .label import LabelData
+
 
 class Sample(BaseModel):
     filename: str
@@ -9,13 +12,13 @@ class Sample(BaseModel):
     project_id: int
     label_data: LabelData = Field(default_factory=LabelData)
     is_labeled: bool = False
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> 'Sample':
+    def from_row(cls, row: dict[str, Any]) -> 'Sample':
         raw_data = row.get('data')
         label_data = LabelData.create_and_heal(raw_data)
-        
+
         return cls(
             filename=row['filename'] if 'filename' in row else row['image_name'],
             image_path=row.get('image_path', ''),
