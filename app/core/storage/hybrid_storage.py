@@ -8,6 +8,7 @@ from .storage_provider import StorageProvider
 
 logger = logging.getLogger("uvicorn")
 
+
 class HybridImageProvider(IStorageProvider):
     def __init__(self, minio_provider: StorageProvider):
         self.minio = minio_provider
@@ -19,7 +20,7 @@ class HybridImageProvider(IStorageProvider):
         return self.minio.get_object(object_name)
 
     def resolve_file_path(self, filename: str, sample_uri: str | None = None) -> bytes | Path | None:
-        base_filename = re.sub(r'_dup\d+', '', filename)
+        base_filename = re.sub(r"_dup\d+", "", filename)
         for name in [filename, base_filename]:
             try:
                 content = self.get_object(name)

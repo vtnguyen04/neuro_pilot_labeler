@@ -7,18 +7,16 @@ def test_label_data_creation_defaults():
     assert ld.bboxes == []
     assert ld.waypoints == []
 
+
 def test_label_data_heal_legacy_format():
-    legacy_data = {
-        "bboxes": [[0.1, 0.2, 0.3, 0.4]],
-        "categories": [5],
-        "command": 2
-    }
+    legacy_data = {"bboxes": [[0.1, 0.2, 0.3, 0.4]], "categories": [5], "command": 2}
     ld = LabelData.create_and_heal(legacy_data)
     assert ld.command == 2
     assert len(ld.bboxes) == 1
     assert ld.bboxes[0].category == 5
     assert ld.bboxes[0].cx == 0.1
     assert ld.bboxes[0].w == 0.3
+
 
 def test_label_data_remove_class():
     ld = LabelData(

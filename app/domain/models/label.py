@@ -11,9 +11,11 @@ class BBox(BaseModel):
     category: int
     id: str | None = None
 
+
 class Waypoint(BaseModel):
     x: float
     y: float
+
 
 class LabelData(BaseModel):
     command: int = 0
@@ -22,8 +24,9 @@ class LabelData(BaseModel):
     control_points: list[Waypoint] = Field(default_factory=list)
 
     @classmethod
-    def create_and_heal(cls, raw_data: str | dict[str, Any]) -> 'LabelData':
+    def create_and_heal(cls, raw_data: str | dict[str, Any]) -> "LabelData":
         import json
+
         if isinstance(raw_data, str):
             try:
                 data = json.loads(raw_data)
@@ -32,8 +35,8 @@ class LabelData(BaseModel):
         else:
             data = raw_data or {}
 
-        raw_bboxes = data.get('bboxes', [])
-        categories = data.get('categories', [])
+        raw_bboxes = data.get("bboxes", [])
+        categories = data.get("categories", [])
         healed_bboxes = []
 
         if raw_bboxes and len(raw_bboxes) > 0:
@@ -42,13 +45,11 @@ class LabelData(BaseModel):
                     healed_bboxes.append(b)
                 elif isinstance(b, (list, tuple)) and len(b) >= 4:
                     cat = categories[i] if categories and i < len(categories) else 0
-                    healed_bboxes.append({
-                        "cx": b[0], "cy": b[1], "w": b[2], "h": b[3],
-                        "category": cat,
-                        "id": f"heal_{i}"
-                    })
+                    healed_bboxes.append(
+                        {"cx": b[0], "cy": b[1], "w": b[2], "h": b[3], "category": cat, "id": f"heal_{i}"}
+                    )
 
-        raw_waypoints = data.get('waypoints', [])
+        raw_waypoints = data.get("waypoints", [])
         healed_waypoints = []
         if raw_waypoints:
             for w in raw_waypoints:
@@ -57,7 +58,7 @@ class LabelData(BaseModel):
                 elif isinstance(w, (list, tuple)) and len(w) >= 2:
                     healed_waypoints.append({"x": w[0], "y": w[1]})
 
-        raw_cp = data.get('control_points', [])
+        raw_cp = data.get("control_points", [])
         healed_cp = []
         if raw_cp:
             for p in raw_cp:
@@ -67,10 +68,10 @@ class LabelData(BaseModel):
                     healed_cp.append({"x": p[0], "y": p[1]})
 
         safe_data = {
-            "command": data.get('command', 0),
+            "command": data.get("command", 0),
             "bboxes": healed_bboxes,
             "waypoints": healed_waypoints,
-            "control_points": healed_cp
+            "control_points": healed_cp,
         }
 
         return cls(**safe_data)

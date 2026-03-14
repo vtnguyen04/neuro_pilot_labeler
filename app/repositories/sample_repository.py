@@ -23,9 +23,16 @@ class SampleRepository(BaseRepository, ISampleRepository):
             conn.execute("CREATE INDEX IF NOT EXISTS idx_is_labeled ON samples(is_labeled)")
             conn.commit()
 
-    def get_all_samples(self, limit: int = 100, offset: int = 0, is_labeled: bool | None = None,
-                       split: str | None = None, project_id: int | None = None,
-                       class_id: int | None = None, command: int | None = None) -> list[Sample]:
+    def get_all_samples(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        is_labeled: bool | None = None,
+        split: str | None = None,
+        project_id: int | None = None,
+        class_id: int | None = None,
+        command: int | None = None,
+    ) -> list[Sample]:
         query = "SELECT image_name as filename, is_labeled, updated_at, data, image_path, project_id FROM samples"
         where_clauses = []
         params = []
@@ -44,8 +51,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
 
         if class_id is not None:
             where_clauses.append(
-                "EXISTS (SELECT 1 FROM json_each(data, '$.bboxes') "
-                "WHERE json_extract(value, '$.category') = ?)"
+                "EXISTS (SELECT 1 FROM json_each(data, '$.bboxes') WHERE json_extract(value, '$.category') = ?)"
             )
             params.append(class_id)
 
@@ -66,8 +72,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
     def get_sample(self, filename: str) -> Sample | None:
         with self._get_connection() as conn:
             row = conn.execute(
-                "SELECT image_name as filename, * FROM samples WHERE image_name = ?",
-                (filename,)
+                "SELECT image_name as filename, * FROM samples WHERE image_name = ?", (filename,)
             ).fetchone()
             if not row:
                 return None
@@ -83,8 +88,8 @@ class SampleRepository(BaseRepository, ISampleRepository):
                     sample.image_path,
                     sample.project_id,
                     sample.label_data.to_json_str(),
-                    1 if sample.is_labeled else 0
-                )
+                    1 if sample.is_labeled else 0,
+                ),
             )
             conn.commit()
 
@@ -92,7 +97,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
         with self._get_connection() as conn:
             conn.execute(
                 "UPDATE samples SET data = ?, is_labeled = ?, updated_at = CURRENT_TIMESTAMP WHERE image_name = ?",
-                (sample.label_data.to_json_str(), 1 if sample.is_labeled else 0, sample.filename)
+                (sample.label_data.to_json_str(), 1 if sample.is_labeled else 0, sample.filename),
             )
             conn.commit()
 
@@ -109,7 +114,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
                     conn.execute(
                         "INSERT INTO samples (image_name, image_path, project_id, data, is_labeled) "
                         "VALUES (?, ?, ?, ?, ?)",
-                        (new_filename, row['image_path'], row['project_id'], row['data'], row['is_labeled'])
+                        (new_filename, row["image_path"], row["project_id"], row["data"], row["is_labeled"]),
                     )
                     conn.commit()
                 except sqlite3.IntegrityError:
@@ -127,6 +132,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
 
     def get_stats(self, project_id: int | None = None) -> dict[str, Any]:
         with self._get_connection() as conn:
+
             def get_count(split: str | None = None, labeled: bool | None = None):
                 q = "SELECT COUNT(*) FROM samples"
                 clauses = []
@@ -151,7 +157,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
                 "val": get_count("val"),
                 "test": get_count("test"),
                 "labeled": get_count(labeled=True),
-                "total": get_count()
+                "total": get_count(),
             }
 
     def get_analytics(self, project_id: int) -> dict[str, Any]:
@@ -165,7 +171,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
                 GROUP BY class_id
             """
             class_dist_rows = conn.execute(class_dist_query, (project_id,)).fetchall()
-            class_dist = {row['class_id']: row['count'] for row in class_dist_rows}
+            class_dist = {row["class_id"]: row["count"] for row in class_dist_rows}
 
             cmd_dist_query = """
                 SELECT
@@ -176,7 +182,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
                 GROUP BY command_id
             """
             cmd_dist_rows = conn.execute(cmd_dist_query, (project_id,)).fetchall()
-            cmd_dist = {row['command_id']: row['count'] for row in cmd_dist_rows if row['command_id'] is not None}
+            cmd_dist = {row["command_id"]: row["count"] for row in cmd_dist_rows if row["command_id"] is not None}
 
             stats_query = """
                 SELECT
@@ -199,18 +205,17 @@ class SampleRepository(BaseRepository, ISampleRepository):
             return {
                 "class_distribution": class_dist,
                 "command_distribution": cmd_dist,
-                "total_samples": stats_row['total_samples'],
-                "labeled_samples": stats_row['labeled_samples'],
-                "total_bboxes": stats_row['total_bboxes'] or 0,
-                "total_waypoints": stats_row['total_waypoints'] or 0,
-                "samples_with_waypoints": wp_samples
+                "total_samples": stats_row["total_samples"],
+                "labeled_samples": stats_row["labeled_samples"],
+                "total_bboxes": stats_row["total_bboxes"] or 0,
+                "total_waypoints": stats_row["total_waypoints"] or 0,
+                "samples_with_waypoints": wp_samples,
             }
 
     def get_raw_samples_for_project(self, project_id: int) -> list[dict[str, Any]]:
         with self._get_connection() as conn:
             rows = conn.execute(
-                "SELECT rowid as id, data FROM samples WHERE project_id = ? AND data IS NOT NULL",
-                (project_id,)
+                "SELECT rowid as id, data FROM samples WHERE project_id = ? AND data IS NOT NULL", (project_id,)
             ).fetchall()
             return [dict(r) for r in rows]
 

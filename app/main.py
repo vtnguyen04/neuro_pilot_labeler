@@ -53,14 +53,17 @@ if ui_dist.exists():
         # Otherwise, serve index.html for React Router to handle
         return FileResponse(ui_dist / "index.html")
 else:
+
     @app.get("/")
     async def fallback():
         return {
             "status": "warning",
             "message": "NeuroPilot Labeler Pro API is running, but Frontend was not found.",
-            "hint": "Run 'npm run build' in tools/labeler/ui to enable the Premium interface."
+            "hint": "Run 'npm run build' in tools/labeler/ui to enable the Premium interface.",
         }
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

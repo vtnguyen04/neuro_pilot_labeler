@@ -10,6 +10,7 @@ Format:
   - Class 98 = waypoints (has bbox + waypoint coordinates)
   - Other classes = regular bboxes
 """
+
 from pathlib import Path
 
 
@@ -18,7 +19,7 @@ def save_yolo_label(
     cls: list[int],
     bboxes: list[list[float]],
     keypoints: list[list[float]] | None = None,
-    command: int | None = None
+    command: int | None = None,
 ) -> None:
     """
     Save labels in YOLO format.
@@ -30,7 +31,7 @@ def save_yolo_label(
         keypoints: Optional list of keypoints [[x1, y1], [x2, y2], ...]
         command: Optional command ID
     """
-    with open(path, 'w') as f:
+    with open(path, "w") as f:
         # Write command line first if present
         if command is not None:
             f.write(f"99 {command}\n")
@@ -44,9 +45,9 @@ def save_yolo_label(
                 kpts = keypoints[i]
                 for j in range(0, len(kpts), 2):
                     if j + 1 < len(kpts):
-                        line += f" {kpts[j]:.6f} {kpts[j+1]:.6f}"
+                        line += f" {kpts[j]:.6f} {kpts[j + 1]:.6f}"
 
-            f.write(line + '\n')
+            f.write(line + "\n")
 
 
 def parse_yolo_label(path: Path) -> tuple[list[int], list[list[float]], list[list[float]], int | None]:

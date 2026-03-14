@@ -15,12 +15,7 @@ from app.repositories.sample_repository import SampleRepository
 
 
 class UploadService:
-    def __init__(
-        self,
-        sample_repo: SampleRepository,
-        project_repo: ProjectRepository,
-        storage: StorageProvider
-    ):
+    def __init__(self, sample_repo: SampleRepository, project_repo: ProjectRepository, storage: StorageProvider):
         self.sample_repo = sample_repo
         self.project_repo = project_repo
         self.storage = storage
@@ -34,26 +29,18 @@ class UploadService:
             content = await file.read()
             ext = Path(file.filename).suffix.lower()
 
-            if ext not in ['.jpg', '.jpeg', '.png', '.bmp']:
+            if ext not in [".jpg", ".jpeg", ".png", ".bmp"]:
                 continue
 
             unique_name = f"{uuid.uuid4().hex[:8]}_{file.filename}"
             storage_uri = self.storage.save_file(content, unique_name)
 
-            sample = Sample(
-                filename=unique_name,
-                image_path=storage_uri,
-                project_id=project_id
-            )
+            sample = Sample(filename=unique_name, image_path=storage_uri, project_id=project_id)
             self.sample_repo.add_sample(sample)
 
             uploaded.append(unique_name)
 
-        return {
-            "status": "success",
-            "uploaded_count": len(uploaded),
-            "filenames": uploaded
-        }
+        return {"status": "success", "uploaded_count": len(uploaded), "filenames": uploaded}
 
     async def upload_video(self, file: UploadFile, project_id: int, sample_rate: int = 5) -> dict:
         content = await file.read()
@@ -82,16 +69,12 @@ class UploadService:
                     frame_name = f"{video_base}_frame_{frame_idx:06d}.jpg"
                     unique_name = f"{uuid.uuid4().hex[:8]}_{frame_name}"
 
-                    _, buffer = cv2.imencode('.jpg', frame)
+                    _, buffer = cv2.imencode(".jpg", frame)
                     frame_bytes = buffer.tobytes()
 
                     storage_uri = self.storage.save_file(frame_bytes, unique_name)
 
-                    sample = Sample(
-                        filename=unique_name,
-                        image_path=storage_uri,
-                        project_id=project_id
-                    )
+                    sample = Sample(filename=unique_name, image_path=storage_uri, project_id=project_id)
                     self.sample_repo.add_sample(sample)
 
                     extracted.append(unique_name)
@@ -105,7 +88,7 @@ class UploadService:
                 "total_frames": total_frames,
                 "extracted_count": len(extracted),
                 "filenames": extracted,
-                "sample_rate": sample_rate
+                "sample_rate": sample_rate,
             }
 
         finally:
@@ -119,29 +102,21 @@ class UploadService:
             tmp_zip = Path(tmp_dir) / "upload.zip"
             tmp_zip.write_bytes(content)
 
-            with zipfile.ZipFile(tmp_zip, 'r') as zip_ref:
+            with zipfile.ZipFile(tmp_zip, "r") as zip_ref:
                 zip_ref.extractall(tmp_dir)
 
             for img_path in Path(tmp_dir).rglob("*"):
-                if img_path.is_file() and img_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.bmp']:
+                if img_path.is_file() and img_path.suffix.lower() in [".jpg", ".jpeg", ".png", ".bmp"]:
                     unique_name = f"{uuid.uuid4().hex[:8]}_{img_path.name}"
                     img_content = img_path.read_bytes()
                     storage_uri = self.storage.save_file(img_content, unique_name)
 
-                    sample = Sample(
-                        filename=unique_name,
-                        image_path=storage_uri,
-                        project_id=project_id
-                    )
+                    sample = Sample(filename=unique_name, image_path=storage_uri, project_id=project_id)
                     self.sample_repo.add_sample(sample)
 
                     uploaded.append(unique_name)
 
-        return {
-            "status": "success",
-            "uploaded_count": len(uploaded),
-            "filenames": uploaded
-        }
+        return {"status": "success", "uploaded_count": len(uploaded), "filenames": uploaded}
 
     async def upload_export_zip(self, file: UploadFile, project_id: int) -> dict:
         from app.utils.yolo_utils import parse_yolo_label
@@ -153,21 +128,22 @@ class UploadService:
             tmp_zip = Path(tmp_dir) / "export.zip"
             tmp_zip.write_bytes(content)
 
-            with zipfile.ZipFile(tmp_zip, 'r') as zip_ref:
+            with zipfile.ZipFile(tmp_zip, "r") as zip_ref:
                 zip_ref.extractall(tmp_dir)
 
             yaml_path = Path(tmp_dir) / "data.yaml"
             if yaml_path.exists():
                 import yaml
+
                 with open(yaml_path) as f:
                     yaml_data = yaml.safe_load(f)
-                    if 'names' in yaml_data:
-                        class_names = yaml_data['names']
+                    if "names" in yaml_data:
+                        class_names = yaml_data["names"]
                         self.project_repo.update_classes(project_id, class_names)
 
-            for split in ['train', 'val', 'test']:
-                img_dir = Path(tmp_dir) / split / 'images'
-                label_dir = Path(tmp_dir) / split / 'labels'
+            for split in ["train", "val", "test"]:
+                img_dir = Path(tmp_dir) / split / "images"
+                label_dir = Path(tmp_dir) / split / "labels"
 
                 if not img_dir.exists():
                     continue
@@ -186,21 +162,20 @@ class UploadService:
                         cls_ids, bbox_list, kpts, cmd = parse_yolo_label(label_path)
 
                         for cls_id, bbox in zip(cls_ids, bbox_list):
-                            bboxes.append({
-                                "category": int(cls_id),
-                                "cx": float(bbox[0]),
-                                "cy": float(bbox[1]),
-                                "w": float(bbox[2]),
-                                "h": float(bbox[3])
-                            })
+                            bboxes.append(
+                                {
+                                    "category": int(cls_id),
+                                    "cx": float(bbox[0]),
+                                    "cy": float(bbox[1]),
+                                    "w": float(bbox[2]),
+                                    "h": float(bbox[3]),
+                                }
+                            )
 
                         if kpts and len(kpts) > 0:
                             for i in range(0, len(kpts), 2):
                                 if i + 1 < len(kpts):
-                                    waypoints.append({
-                                        "x": float(kpts[i]),
-                                        "y": float(kpts[i + 1])
-                                    })
+                                    waypoints.append({"x": float(kpts[i]), "y": float(kpts[i + 1])})
 
                         command = cmd if cmd is not None else 0
 
@@ -208,18 +183,10 @@ class UploadService:
                         filename=unique_name,
                         image_path=storage_uri,
                         project_id=project_id,
-                        label_data=LabelData(
-                            bboxes=bboxes,
-                            waypoints=waypoints,
-                            command=command
-                        ),
-                        is_labeled=(len(bboxes) > 0 or len(waypoints) > 0)
+                        label_data=LabelData(bboxes=bboxes, waypoints=waypoints, command=command),
+                        is_labeled=(len(bboxes) > 0 or len(waypoints) > 0),
                     )
                     self.sample_repo.add_sample(sample)
                     imported.append(unique_name)
 
-        return {
-            "status": "success",
-            "imported_count": len(imported),
-            "filenames": imported
-        }
+        return {"status": "success", "imported_count": len(imported), "filenames": imported}

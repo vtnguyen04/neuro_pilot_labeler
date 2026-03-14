@@ -1,10 +1,9 @@
 def test_project_lifecycle(client):
     # 1. Create Project
-    response = client.post("/api/v1/labels/projects", json={
-        "name": "Integration Test Project",
-        "classes": ["Car", "Person"],
-        "commands": ["FOLLOW", "STOP"]
-    })
+    response = client.post(
+        "/api/v1/labels/projects",
+        json={"name": "Integration Test Project", "classes": ["Car", "Person"], "commands": ["FOLLOW", "STOP"]},
+    )
     assert response.status_code == 200
     project_id = response.json()
     assert isinstance(project_id, int)
@@ -21,6 +20,7 @@ def test_project_lifecycle(client):
 
     response = client.get(f"/api/v1/labels/projects/{project_id}/classes")
     assert response.json() == ["Car", "Person", "Bike"]
+
 
 def test_list_labels_empty(client):
     response = client.get("/api/v1/labels/")

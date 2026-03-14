@@ -19,23 +19,16 @@ class AnnotationService:
 
         data = sample.label_data.to_dict()
 
-        return {
-            "filename": filename,
-            "is_labeled": sample.is_labeled,
-            "updated_at": sample.updated_at,
-            **data
-        }
+        return {"filename": filename, "is_labeled": sample.is_labeled, "updated_at": sample.updated_at, **data}
 
     def update_label(self, filename: str, update: LabelUpdate) -> dict[str, str]:
         label_data = LabelData(
             bboxes=[b.model_dump() for b in update.bboxes],
             waypoints=[w.model_dump() for w in update.waypoints],
             control_points=(
-                [cp.model_dump() for cp in update.control_points]
-                if hasattr(update, 'control_points')
-                else []
+                [cp.model_dump() for cp in update.control_points] if hasattr(update, "control_points") else []
             ),
-            command=update.command
+            command=update.command,
         )
 
         sample = self.sample_repo.get_sample(filename)
@@ -46,6 +39,7 @@ class AnnotationService:
         self.sample_repo.save_label(sample)
 
         from ...core.config import Config
+
         label_dir = Config.DATA_DIR / "labels"
         label_dir.mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +49,7 @@ class AnnotationService:
             cls=[b.category for b in update.bboxes],
             bboxes=[[b.cx, b.cy, b.w, b.h] for b in update.bboxes],
             keypoints=[[w.x, w.y] for w in update.waypoints],
-            command=update.command
+            command=update.command,
         )
 
         return {"status": "success", "image": filename}

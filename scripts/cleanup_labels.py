@@ -3,7 +3,8 @@ import os
 import sqlite3
 
 DB_PATH = "/home/quynhthu/Documents/AI-project/e2e/tools/labeler/data/labeler.db"
-PROJECT_ID = 12 # BFMC
+PROJECT_ID = 12  # BFMC
+
 
 def cleanup():
     if not os.path.exists(DB_PATH):
@@ -24,13 +25,13 @@ def cleanup():
     reset_count = 0
 
     for row in rows:
-        name = row['image_name']
-        data_str = row['data']
+        name = row["image_name"]
+        data_str = row["data"]
 
         try:
             data = json.loads(data_str) if data_str else {}
-            bboxes = data.get('bboxes', [])
-            waypoints = data.get('waypoints', [])
+            bboxes = data.get("bboxes", [])
+            waypoints = data.get("waypoints", [])
 
             # If both are empty, it should NOT be labeled
             if not bboxes and not waypoints:
@@ -47,6 +48,7 @@ def cleanup():
     print("\nCleanup finished!")
     print(f"Total labeled samples scanned: {total}")
     print(f"Samples reset to TODO: {reset_count}")
+
 
 if __name__ == "__main__":
     cleanup()

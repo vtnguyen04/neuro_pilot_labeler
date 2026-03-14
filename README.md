@@ -1,12 +1,12 @@
 # 🏷️ NeuroPilot Labeler Pro: Professional Data Annotation Platform
 
-**NeuroPilot Labeler Pro** is a high-performance, modular platform designed for annotating image data for autonomous driving tasks. Built with a focus on Clean Architecture and Domain-Driven Design (DDD), it provides a robust and scalable foundation for self-driving trajectory prediction and object detection.
+**NeuroPilot Labeler Pro** is a high-performance, modular platform designed for annotating image data for autonomous driving tasks. It provides a robust and scalable foundation for self-driving trajectory prediction and object detection.
 
 ---
 
 ## 🌟 Key Features
 
--   **Clean Architecture & DDD**: Backend structured into concentric layers (Domain, Application, Infrastructure) for maximum testability and maintainability.
+-   **Modular Backend**: Structured into specialized layers for maximum testability and maintainability.
 -   **Dynamic Behavioral Logic**: Define custom behavioral commands (FOLLOW_LANE, TURN_LEFT, etc.) per project directly from the UI.
 -   **Intelligent Export**: Export datasets in YOLO format with on-the-fly resizing (640x640, 320x320) and stratified splitting.
 -   **Modern Canvas UI**: React & TypeScript interface for precision bounding box and trajectory annotation.
@@ -56,32 +56,23 @@ The UI will be accessible at `http://localhost:5173`.
 
 ## 📂 Project Structure
 
-The project follows **Clean Architecture** and **Domain-Driven Design (DDD)** principles to ensure high maintainability and testability.
+The project is organized into clear functional layers to ensure logic separation and scalability.
 
 ```text
 app/
-├── domain/                 # Layer 1: Enterprise Business Rules (Pure Logic)
-│   ├── models/             # Rich Entities (Project, Sample, LabelData)
-│   ├── interfaces/         # Repository & Storage Abstract Base Classes
-│   └── services/           # Application Use Cases (Annotation, Project, Sample Services)
-├── core/                   # Layer 2: Infrastructure (Frameworks & Config)
-│   ├── config.py           # Global settings and environment variables
-│   └── storage/            # MinIO & Hybrid storage implementations
-├── repositories/           # Layer 2: Infrastructure (Persistence)
-│   ├── base_repository.py  # Base SQLite connection management
-│   ├── project_repository.py# Project SQL implementation (Implements IProjectRepo)
-│   ├── sample_repository.py # Sample SQL implementation (Implements ISampleRepo)
-│   └── version_repository.py# Version SQL implementation
-├── routers/                # Layer 3: Presentation (Adapters)
-│   ├── label_router.py     # Labeling & Project API Endpoints
-│   ├── upload_router.py    # Media upload & processing Endpoints
-│   └── version_router.py   # Dataset Export & Versioning Endpoints
-├── schemas/                # Data Transfer Objects (DTOs) for API I/O
-└── utils/                  # Cross-cutting concerns (YOLO formatters, etc.)
+├── domain/                 # Core Logic: Business entities and services
+│   ├── models/             # Data Entities (Project, Sample, LabelData)
+│   ├── interfaces/         # Abstract definitions for Repositories & Storage
+│   └── services/           # Application Logic (Annotation, Project, Sample Services)
+├── core/                   # Infrastructure: Global Config & Hybrid Storage
+├── repositories/           # Infrastructure: Database Persistence implementations
+├── routers/                # Presentation: API Endpoints (FastAPI)
+├── schemas/                # Data Transfer Objects (DTOs) for API validation
+└── utils/                  # Cross-cutting Utilities (YOLO formatters, etc.)
 
 data/                       # Local data storage (SQLite DB, Uploads, Exports)
 tests/                      # Automated Test Suite
-├── unit/                   # Isolated logic tests (Domain & Services)
+├── unit/                   # Isolated logic tests
 └── integration/            # Full-flow API tests
 ui/                         # Modern React Frontend (Vite + TS)
 ```
@@ -91,7 +82,7 @@ ui/                         # Modern React Frontend (Vite + TS)
 ## 🧪 Quality Control
 
 ### Testing
-We maintain a 100% logic coverage goal using PyTest:
+We maintain a high logic coverage goal using PyTest:
 ```bash
 # Run all tests
 uv run pytest tests/

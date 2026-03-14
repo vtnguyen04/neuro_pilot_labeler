@@ -27,11 +27,44 @@ class IProjectRepository(ABC):
         pass
 
 
+class IVersionRepository(ABC):
+    @abstractmethod
+    def create_version(self, name: str, description: str, project_id: int, path: str) -> int:
+        pass
+
+    @abstractmethod
+    def get_version(self, version_id: int) -> dict | None:
+        pass
+
+    @abstractmethod
+    def list_versions(self, project_id: int | None = None) -> list[dict]:
+        pass
+
+    @abstractmethod
+    def delete_version(self, version_id: int) -> None:
+        pass
+
+    @abstractmethod
+    def add_item_to_version(self, version_id: int, filename: str, data: str, split: str) -> None:
+        pass
+
+    @abstractmethod
+    def update_sample_count(self, version_id: int, count: int) -> None:
+        pass
+
+
 class ISampleRepository(ABC):
     @abstractmethod
-    def get_all_samples(self, limit: int = 100, offset: int = 0, is_labeled: bool | None = None,
-                       split: str | None = None, project_id: int | None = None,
-                       class_id: int | None = None, command: int | None = None) -> list[Sample]:
+    def get_all_samples(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        is_labeled: bool | None = None,
+        split: str | None = None,
+        project_id: int | None = None,
+        class_id: int | None = None,
+        command: int | None = None,
+    ) -> list[Sample]:
         pass
 
     @abstractmethod

@@ -21,13 +21,13 @@ class ProjectService:
         name: str,
         description: str | None = None,
         classes: list[str] | None = None,
-        commands: list[str] | None = None
+        commands: list[str] | None = None,
     ) -> int:
         p = Project(
             name=name,
             description=description,
             classes=classes or [],
-            commands=commands or ["FOLLOW_LANE", "TURN_LEFT", "TURN_RIGHT", "STRAIGHT"]
+            commands=commands or ["FOLLOW_LANE", "TURN_LEFT", "TURN_RIGHT", "STRAIGHT"],
         )
         return self.project_repo.create_project(p)
 
@@ -55,8 +55,8 @@ class ProjectService:
 
         raw_samples = self.sample_repo.get_raw_samples_for_project(project_id)
         for row in raw_samples:
-            sample_id = row['id']
-            data_str = row['data']
+            sample_id = row["id"]
+            data_str = row["data"]
             if not data_str:
                 continue
 
@@ -108,24 +108,24 @@ class ProjectService:
         raw_stats = self.sample_repo.get_analytics(project_id)
 
         class_distribution = []
-        for class_id, count in raw_stats['class_distribution'].items():
+        for class_id, count in raw_stats["class_distribution"].items():
             if int(class_id) < len(classes):
                 name = classes[int(class_id)]
             else:
                 name = f"Unknown-{class_id}"
             class_distribution.append({"id": int(class_id), "name": name, "count": count})
-        class_distribution.sort(key=lambda x: x['count'], reverse=True)
-        raw_stats['class_distribution'] = class_distribution
+        class_distribution.sort(key=lambda x: x["count"], reverse=True)
+        raw_stats["class_distribution"] = class_distribution
 
         command_distribution = []
-        for cmd_id, count in raw_stats.get('command_distribution', {}).items():
+        for cmd_id, count in raw_stats.get("command_distribution", {}).items():
             cmd_idx = int(cmd_id)
             if cmd_idx < len(commands):
                 name = commands[cmd_idx]
             else:
                 name = f"Unknown-{cmd_id}"
             command_distribution.append({"id": cmd_idx, "name": name, "count": count})
-        command_distribution.sort(key=lambda x: x['count'], reverse=True)
-        raw_stats['command_distribution'] = command_distribution
+        command_distribution.sort(key=lambda x: x["count"], reverse=True)
+        raw_stats["command_distribution"] = command_distribution
 
         return raw_stats

@@ -10,6 +10,7 @@ from app.domain.services.project_service import ProjectService
 def mock_repos():
     return MagicMock(), MagicMock()
 
+
 def test_get_projects(mock_repos):
     p_repo, s_repo = mock_repos
     service = ProjectService(p_repo, s_repo)
@@ -20,6 +21,7 @@ def test_get_projects(mock_repos):
     assert len(projects) == 2
     assert projects[0].name == "P1"
     p_repo.get_projects.assert_called_once()
+
 
 def test_create_project(mock_repos):
     p_repo, s_repo = mock_repos
@@ -37,15 +39,16 @@ def test_create_project(mock_repos):
     assert project_arg.name == "New"
     assert project_arg.classes == ["A"]
 
+
 def test_delete_class_logic(mock_repos):
     p_repo, s_repo = mock_repos
     service = ProjectService(p_repo, s_repo)
 
     project = Project(id=1, name="Test", classes=["cat", "dog", "bird"])
     p_repo.get_project.return_value = project
-    s_repo.get_raw_samples_for_project.return_value = [] # No samples to heal in this test
+    s_repo.get_raw_samples_for_project.return_value = []  # No samples to heal in this test
 
-    res = service.delete_class(1, 1) # Delete "dog"
+    res = service.delete_class(1, 1)  # Delete "dog"
 
     assert res["status"] == "success"
     assert res["classes"] == ["cat", "bird"]

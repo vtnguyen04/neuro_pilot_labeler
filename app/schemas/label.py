@@ -11,9 +11,11 @@ class BBox(BaseModel):
     category: int
     id: str | None = None
 
+
 class Waypoint(BaseModel):
     x: float
     y: float
+
 
 class LabelBase(BaseModel):
     filename: str
@@ -23,19 +25,23 @@ class LabelBase(BaseModel):
     control_points: list[Waypoint] = []
     is_labeled: bool = False
 
+
 class LabelUpdate(BaseModel):
     command: int
     bboxes: list[BBox]
     waypoints: list[Waypoint]
     control_points: list[Waypoint] | None = []
 
+
 class LabelRead(LabelBase):
     id: int
     updated_at: datetime
 
+
 class VersionBase(BaseModel):
     name: str = Field(..., min_length=1)
     description: str | None = None
+
 
 class VersionCreate(VersionBase):
     project_id: int
@@ -45,6 +51,7 @@ class VersionCreate(VersionBase):
     resize_width: int | None = None
     resize_height: int | None = None
 
+
 class VersionRead(VersionBase):
     id: int
     project_id: int
@@ -52,11 +59,13 @@ class VersionRead(VersionBase):
     sample_count: int
     path: str
 
+
 class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1)
     description: str | None = None
     classes: list[str] | None = None
     commands: list[str] | None = None
+
 
 class ProjectRead(ProjectCreate):
     id: int

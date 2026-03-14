@@ -20,7 +20,7 @@ def get_upload_service():
         access_key=Config.MINIO_ACCESS_KEY,
         secret_key=Config.MINIO_SECRET_KEY,
         bucket_name=Config.MINIO_BUCKET_NAME,
-        secure=Config.MINIO_SECURE
+        secure=Config.MINIO_SECURE,
     )
     return UploadService(sample_repo, project_repo, storage)
 
@@ -29,7 +29,7 @@ def get_upload_service():
 async def upload_images(
     project_id: int = Form(...),
     files: list[UploadFile] = File(...),
-    service: UploadService = Depends(get_upload_service)
+    service: UploadService = Depends(get_upload_service),
 ):
     """Upload multiple images to a project."""
     return await service.upload_images(files, project_id)
@@ -40,7 +40,7 @@ async def upload_video(
     project_id: int = Form(...),
     sample_rate: int = Form(5),
     file: UploadFile = File(...),
-    service: UploadService = Depends(get_upload_service)
+    service: UploadService = Depends(get_upload_service),
 ):
     """
     Upload video and extract frames.
@@ -55,9 +55,7 @@ async def upload_video(
 
 @router.post("/folder")
 async def upload_folder(
-    project_id: int = Form(...),
-    file: UploadFile = File(...),
-    service: UploadService = Depends(get_upload_service)
+    project_id: int = Form(...), file: UploadFile = File(...), service: UploadService = Depends(get_upload_service)
 ):
     """Upload ZIP folder and auto-filter images."""
     return await service.upload_folder_zip(file, project_id)
@@ -65,9 +63,7 @@ async def upload_folder(
 
 @router.post("/export")
 async def upload_export(
-    project_id: int = Form(...),
-    file: UploadFile = File(...),
-    service: UploadService = Depends(get_upload_service)
+    project_id: int = Form(...), file: UploadFile = File(...), service: UploadService = Depends(get_upload_service)
 ):
     """Import previously exported ZIP with labels."""
     return await service.upload_export_zip(file, project_id)

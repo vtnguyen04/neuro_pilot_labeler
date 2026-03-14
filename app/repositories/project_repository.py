@@ -19,43 +19,43 @@ class ProjectRepository(BaseRepository, IProjectRepository):
                 )
             """)
             cursor = conn.execute("PRAGMA table_info(projects)")
-            cols = [row['name'] for row in cursor.fetchall()]
-            if 'classes' not in cols:
+            cols = [row["name"] for row in cursor.fetchall()]
+            if "classes" not in cols:
                 conn.execute("ALTER TABLE projects ADD COLUMN classes TEXT DEFAULT '[]'")
-            if 'commands' not in cols:
+            if "commands" not in cols:
                 conn.execute(
                     "ALTER TABLE projects ADD COLUMN commands TEXT DEFAULT "
-                    "'[\"FOLLOW_LANE\", \"TURN_LEFT\", \"TURN_RIGHT\", \"STRAIGHT\"]'"
+                    '\'["FOLLOW_LANE", "TURN_LEFT", "TURN_RIGHT", "STRAIGHT"]\''
                 )
             conn.commit()
 
     def _row_to_entity(self, row: dict) -> Project:
         try:
-            classes = json.loads(row.get('classes', '[]'))
+            classes = json.loads(row.get("classes", "[]"))
         except json.JSONDecodeError:
             classes = []
 
         try:
-            commands = json.loads(row.get('commands', '[]'))
+            commands = json.loads(row.get("commands", "[]"))
             if not commands:
                 commands = ["FOLLOW_LANE", "TURN_LEFT", "TURN_RIGHT", "STRAIGHT"]
         except json.JSONDecodeError:
             commands = ["FOLLOW_LANE", "TURN_LEFT", "TURN_RIGHT", "STRAIGHT"]
 
         return Project(
-            id=row['id'],
-            name=row['name'],
-            description=row.get('description'),
+            id=row["id"],
+            name=row["name"],
+            description=row.get("description"),
             classes=classes,
             commands=commands,
-            created_at=row.get('created_at')
+            created_at=row.get("created_at"),
         )
 
     def create_project(self, project: Project) -> int:
         with self._get_connection() as conn:
             cursor = conn.execute(
                 "INSERT INTO projects (name, description, classes, commands) VALUES (?, ?, ?, ?)",
-                (project.name, project.description, json.dumps(project.classes), json.dumps(project.commands))
+                (project.name, project.description, json.dumps(project.classes), json.dumps(project.commands)),
             )
             project_id = cursor.lastrowid
             conn.commit()
@@ -90,8 +90,8 @@ class ProjectRepository(BaseRepository, IProjectRepository):
                     project.description,
                     json.dumps(project.classes),
                     json.dumps(project.commands),
-                    project.id
-                )
+                    project.id,
+                ),
             )
             conn.commit()
 

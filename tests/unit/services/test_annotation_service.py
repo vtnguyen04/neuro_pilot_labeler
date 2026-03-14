@@ -11,6 +11,7 @@ from app.schemas.label import LabelUpdate
 def mock_repos():
     return MagicMock(), MagicMock()
 
+
 def test_get_sample_detail(mock_repos):
     s_repo, p_repo = mock_repos
     service = AnnotationService(s_repo, p_repo)
@@ -22,6 +23,7 @@ def test_get_sample_detail(mock_repos):
     res = service.get_sample_detail("test.jpg")
     assert res["filename"] == "test.jpg"
     assert res["command"] == 3
+
 
 def test_update_label(mock_repos):
     s_repo, p_repo = mock_repos

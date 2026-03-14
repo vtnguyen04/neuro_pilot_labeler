@@ -12,9 +12,16 @@ class SampleService:
     def get_stats(self, project_id: int | None = None) -> dict[str, Any]:
         return self.sample_repo.get_stats(project_id)
 
-    def get_samples(self, limit: int = 100, offset: int = 0, is_labeled: bool | None = None,
-                    split: str | None = None, project_id: int | None = None,
-                    class_id: int | None = None, command: int | None = None) -> list[dict]:
+    def get_samples(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        is_labeled: bool | None = None,
+        split: str | None = None,
+        project_id: int | None = None,
+        class_id: int | None = None,
+        command: int | None = None,
+    ) -> list[dict]:
         samples = self.sample_repo.get_all_samples(limit, offset, is_labeled, split, project_id, class_id, command)
 
         result = []
@@ -23,7 +30,7 @@ class SampleService:
                 "filename": s.filename,
                 "is_labeled": s.is_labeled,
                 "updated_at": s.updated_at,
-                "data": s.label_data.to_dict()
+                "data": s.label_data.to_dict(),
             }
             item.update(s.label_data.to_dict())
             result.append(item)
@@ -52,6 +59,7 @@ class SampleService:
 
         try:
             from ...core.config import Config
+
             json_path = Config.PROCESSED_DIR / (Path(filename).stem + ".json")
             if json_path.exists():
                 os.remove(json_path)
@@ -103,5 +111,5 @@ class SampleService:
             "status": "success",
             "deleted_count": deleted_count,
             "files_removed": files_removed,
-            "errors": errors if errors else None
+            "errors": errors if errors else None,
         }
