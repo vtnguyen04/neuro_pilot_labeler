@@ -1,4 +1,4 @@
-import { ArrowUpRight, BarChart3, CheckCircle2, Search, Trash2, Upload } from 'lucide-react';
+import { ArrowUpRight, BarChart3, CheckCircle2, Search, Trash2, Upload, Eraser } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { API } from '../api';
@@ -120,6 +120,7 @@ export const DatasetPage: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [deletingUnlabeled, setDeletingUnlabeled] = useState(false);
   const dragState = useRef({ isDragging: false, action: null as 'add' | 'remove' | null });
 
   const LIMIT = 48;
@@ -206,6 +207,45 @@ export const DatasetPage: React.FC = () => {
                     className="px-6 py-3 bg-red-500/10 text-red-400 font-bold rounded-2xl hover:scale-105 transition-all border-2 border-red-500/30 hover:border-red-500/60 flex items-center gap-2 uppercase text-xs"
                 >
                     <Trash2 className="w-4 h-4" /> Delete Project
+                </button>
+                <button
+                    onClick={async () => {
+                        const unlabeledCount = stats.total - stats.labeled;
+                        if (unlabeledCount === 0) {
+                            alert('No unlabeled samples to delete.');
+                            return;
+                        }
+                        if (!confirm(`⚠️ DELETE ALL UNLABELED SAMPLES?\n\nThis will permanently delete ${unlabeledCount} unlabeled samples from this project.\n\nThis action cannot be undone.`)) return;
+                        const userInput = prompt(`Type 'DELETE' to confirm removing ${unlabeledCount} unlabeled samples:`);
+                        if (userInput !== 'DELETE') {
+                            alert('Deletion cancelled');
+                            return;
+                        }
+                        setDeletingUnlabeled(true);
+                        try {
+                            const response = await fetch('/api/v1/labels/batch/delete-unlabeled', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ project_id: projectId })
+                            });
+                            const result = await response.json();
+                            if (result.status === 'success') {
+                                alert(`✅ Successfully deleted ${result.deleted_count} unlabeled samples.`);
+                                loadData(false);
+                            } else {
+                                alert(`❌ Failed: ${result.message}`);
+                            }
+                        } catch (error) {
+                            console.error('Delete unlabeled failed:', error);
+                            alert('Failed to delete unlabeled samples');
+                        } finally {
+                            setDeletingUnlabeled(false);
+                        }
+                    }}
+                    disabled={deletingUnlabeled || (stats.total - stats.labeled) === 0}
+                    className="px-6 py-3 bg-orange-500/10 text-orange-400 font-bold rounded-2xl hover:scale-105 transition-all border-2 border-orange-500/30 hover:border-orange-500/60 flex items-center gap-2 uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                    <Eraser className="w-4 h-4" /> {deletingUnlabeled ? 'Deleting...' : 'Clear Unlabeled'}
                 </button>
                 <button onClick={() => setShowUploadModal(true)} className="px-8 py-3 bg-white/10 text-white font-bold rounded-2xl hover:scale-105 transition-all border-2 border-white/20 flex items-center gap-2 uppercase text-xs">
                     <Upload className="w-4 h-4" /> Upload Data

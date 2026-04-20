@@ -113,3 +113,19 @@ class SampleService:
             "files_removed": files_removed,
             "errors": errors if errors else None,
         }
+
+    def delete_all_unlabeled(self, project_id: int | None = None) -> dict[str, Any]:
+        """Delete all samples that have not been labeled yet."""
+        try:
+            deleted_count = self.sample_repo.delete_unlabeled_samples(project_id)
+            return {
+                "status": "success",
+                "deleted_count": deleted_count,
+                "project_id": project_id,
+                "message": f"Deleted {deleted_count} unlabeled samples",
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e),
+            }

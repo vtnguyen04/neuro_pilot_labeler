@@ -180,6 +180,15 @@ def reset_label(filename: str, service: AnnotationService = Depends(get_annotati
     return service.reset_label(filename)
 
 
+@router.post("/batch/delete-unlabeled")
+def delete_unlabeled_samples(
+    payload: dict, service: SampleService = Depends(get_sample_service)
+):
+    """Delete all samples that have not been labeled yet."""
+    project_id = payload.get("project_id")
+    return service.delete_all_unlabeled(project_id)
+
+
 @router.post("/{filename}/duplicate")
 def duplicate_label(filename: str, new_filename: str, service: AnnotationService = Depends(get_annotation_service)):
     return service.duplicate_sample(filename, new_filename)

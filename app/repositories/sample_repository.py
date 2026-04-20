@@ -224,6 +224,19 @@ class SampleRepository(BaseRepository, ISampleRepository):
             conn.execute("UPDATE samples SET data = ? WHERE rowid = ?", (raw_data_str, sample_id))
             conn.commit()
 
+    def delete_unlabeled_samples(self, project_id: int | None = None) -> int:
+        """Delete all samples where is_labeled = 0. Optionally filter by project_id."""
+        with self._get_connection() as conn:
+            if project_id is not None:
+                cursor = conn.execute(
+                    "DELETE FROM samples WHERE is_labeled = 0 AND project_id = ?",
+                    (project_id,)
+                )
+            else:
+                cursor = conn.execute("DELETE FROM samples WHERE is_labeled = 0")
+            conn.commit()
+            return cursor.rowcount
+
     def reset_label(self, filename: str):
         sample = self.get_sample(filename)
         if sample:
