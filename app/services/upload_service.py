@@ -123,6 +123,7 @@ class UploadService:
 
         content = await file.read()
         imported = []
+        image_extensions = {".jpg", ".jpeg", ".png", ".bmp"}
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_zip = Path(tmp_dir) / "export.zip"
@@ -131,25 +132,34 @@ class UploadService:
             with zipfile.ZipFile(tmp_zip, "r") as zip_ref:
                 zip_ref.extractall(tmp_dir)
 
-            yaml_path = Path(tmp_dir) / "data.yaml"
-            if yaml_path.exists():
+            # Search for data.yaml anywhere
+            yaml_files = list(Path(tmp_dir).rglob("data.yaml"))
+            if yaml_files:
                 import yaml
+                try:
+                    with open(yaml_files[0]) as f:
+                        yaml_data = yaml.safe_load(f)
+                        if yaml_data and "names" in yaml_data:
+                            class_names = yaml_data["names"]
+                            self.project_repo.update_classes(project_id, class_names)
+                except Exception as e:
+                    print(f"Error parsing yaml: {e}")
 
-                with open(yaml_path) as f:
-                    yaml_data = yaml.safe_load(f)
-                    if "names" in yaml_data:
-                        class_names = yaml_data["names"]
-                        self.project_repo.update_classes(project_id, class_names)
+            # Find all image files and their potential labels
+            for img_path in Path(tmp_dir).rglob("*"):
+                if img_path.is_file() and img_path.suffix.lower() in image_extensions:
+                    # Try to find corresponding label
+                    # Option 1: Conventional YOLO structure (images/ -> labels/)
+                    label_path = None
+                    img_path_str = str(img_path)
+                    if "/images/" in img_path_str:
+                        label_path_str = img_path_str.replace("/images/", "/labels/").rsplit(".", 1)[0] + ".txt"
+                        label_path = Path(label_path_str)
+                    
+                    # Option 2: Same directory
+                    if label_path is None or not label_path.exists():
+                        label_path = img_path.with_suffix(".txt")
 
-            for split in ["train", "val", "test"]:
-                img_dir = Path(tmp_dir) / split / "images"
-                label_dir = Path(tmp_dir) / split / "labels"
-
-                if not img_dir.exists():
-                    continue
-
-                for img_path in img_dir.glob("*.jpg"):
-                    label_path = label_dir / f"{img_path.stem}.txt"
                     unique_name = f"{uuid.uuid4().hex[:8]}_{img_path.name}"
                     img_content = img_path.read_bytes()
                     storage_uri = self.storage.save_file(img_content, unique_name)
