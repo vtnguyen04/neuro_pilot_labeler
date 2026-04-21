@@ -294,13 +294,16 @@ export const AnnotatePage: React.FC = () => {
       if (key === 'c') {
           handleUpdate({ waypoints: [], control_points: [] });
       }
+      if (key === 'x' && e.shiftKey) {
+          handleDeleteImage().catch(console.error);
+      }
       if (e.key === '1') handleSpawnTemplate('straight');
       if (e.key === '2') handleSpawnTemplate('left');
       if (e.key === '3') handleSpawnTemplate('right');
     };
     window.addEventListener('keydown', handleKeys);
     return () => window.removeEventListener('keydown', handleKeys);
-  }, [selectedFilename, mode, handleUndo, samples, handleSelect, handleSave, handleUpdate]);
+  }, [selectedFilename, mode, handleUndo, samples, handleSelect, handleSave, handleUpdate, handleDeleteImage]);
 
   useEffect(() => {
     if (samples.length > 0) {
