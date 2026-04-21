@@ -213,7 +213,8 @@ export const Annotator: React.FC<AnnotatorProps> = ({
   useEffect(() => { draw(); }, [draw]);
 
   const onMouseDown = (e: React.MouseEvent) => {
-    const world = toWorld(e.clientX, e.clientY);
+    const rawWorld = toWorld(e.clientX, e.clientY);
+    const world = { x: clamp(rawWorld.x), y: clamp(rawWorld.y) };
     if (e.altKey || e.button === 1) {
         setDragInfo({ type: 'pan', index: -1, startX: e.clientX, startY: e.clientY });
         return;

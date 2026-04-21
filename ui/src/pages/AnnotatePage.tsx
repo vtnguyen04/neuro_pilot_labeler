@@ -272,29 +272,35 @@ export const AnnotatePage: React.FC = () => {
     const handleKeys = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'SELECT') return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); handleUndo(); }
-      if (e.key === 'ArrowRight') {
+      
+      const key = e.key.toLowerCase();
+      
+      if (e.key === 'ArrowRight' || key === 'd') {
           const idx = samples.findIndex(s => s.filename === selectedFilename);
           const nextIdx = (idx + 1) % samples.length;
           handleSelect(samples[nextIdx].filename).catch(console.error);
       }
-      if (e.key === 'ArrowLeft') {
+      if (e.key === 'ArrowLeft' || key === 'a') {
           const idx = samples.findIndex(s => s.filename === selectedFilename);
           const nextIdx = (idx - 1 + samples.length) % samples.length;
           handleSelect(samples[nextIdx].filename).catch(console.error);
       }
-      if (e.key.toLowerCase() === 's') {
+      if (key === 's') {
         if (e.ctrlKey || e.metaKey) e.preventDefault();
         handleSave().catch(console.error);
       }
-      if (e.key.toLowerCase() === 'q') setMode('bbox');
-      if (e.key.toLowerCase() === 'w') setMode('waypoint');
+      if (key === 'q') setMode('bbox');
+      if (key === 'w') setMode('waypoint');
+      if (key === 'c') {
+          handleUpdate({ waypoints: [], control_points: [] });
+      }
       if (e.key === '1') handleSpawnTemplate('straight');
       if (e.key === '2') handleSpawnTemplate('left');
       if (e.key === '3') handleSpawnTemplate('right');
     };
     window.addEventListener('keydown', handleKeys);
     return () => window.removeEventListener('keydown', handleKeys);
-  }, [selectedFilename, mode, handleUndo, samples, handleSelect, handleSave]);
+  }, [selectedFilename, mode, handleUndo, samples, handleSelect, handleSave, handleUpdate]);
 
   useEffect(() => {
     if (samples.length > 0) {
