@@ -132,3 +132,25 @@ class SampleService:
                 "status": "error",
                 "message": str(e),
             }
+
+    def delete_samples_by_filter(
+        self,
+        is_labeled: bool | None = None,
+        split: str | None = None,
+        project_id: int | None = None,
+        class_id: int | None = None,
+        command: int | None = None,
+        has_control_points: bool | None = None,
+    ) -> dict[str, Any]:
+        """Delete samples based on filter and cleanup physical files."""
+        try:
+            filenames = self.sample_repo.delete_samples(
+                is_labeled, split, project_id, class_id, command, has_control_points
+            )
+            # Re-use batch delete logic to cleanup physical files
+            return self.delete_batch(filenames)
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e),
+            }

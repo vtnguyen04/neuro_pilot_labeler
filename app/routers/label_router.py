@@ -190,6 +190,21 @@ def delete_unlabeled_samples(
     return service.delete_all_unlabeled(project_id)
 
 
+@router.post("/batch/delete-by-filter")
+def delete_by_filter(payload: dict, service: SampleService = Depends(get_sample_service)):
+    """Delete samples based on arbitrary filter."""
+    is_labeled = payload.get("is_labeled")
+    split = payload.get("split")
+    project_id = payload.get("project_id")
+    class_id = payload.get("class_id")
+    command = payload.get("command")
+    has_control_points = payload.get("has_control_points")
+
+    return service.delete_samples_by_filter(
+        is_labeled, split, project_id, class_id, command, has_control_points
+    )
+
+
 @router.post("/{filename}/duplicate")
 def duplicate_label(filename: str, new_filename: str, service: AnnotationService = Depends(get_annotation_service)):
     return service.duplicate_sample(filename, new_filename)

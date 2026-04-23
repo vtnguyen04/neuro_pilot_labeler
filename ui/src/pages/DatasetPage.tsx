@@ -121,7 +121,6 @@ export const DatasetPage: React.FC = () => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
-  const [deletingUnlabeled, setDeletingUnlabeled] = useState(false);
   const dragState = useRef({ isDragging: false, action: null as 'add' | 'remove' | null });
 
   const LIMIT = 48;
@@ -212,42 +211,49 @@ export const DatasetPage: React.FC = () => {
                 </button>
                 <button
                     onClick={async () => {
-                        const unlabeledCount = stats.total - stats.labeled;
-                        if (unlabeledCount === 0) {
-                            alert('No unlabeled samples to delete.');
-                            return;
-                        }
-                        if (!confirm(`⚠️ DELETE ALL UNLABELED SAMPLES?\n\nThis will permanently delete ${unlabeledCount} unlabeled samples from this project.\n\nThis action cannot be undone.`)) return;
-                        const userInput = prompt(`Type 'DELETE' to confirm removing ${unlabeledCount} unlabeled samples:`);
+                        const filterDesc = [];
+                        if (filterStatus !== 'all') filterDesc.push(filterStatus.toUpperCase());
+                        if (filterControlPoints !== null) filterDesc.push(filterControlPoints ? 'HAS TRAJECTORY' : 'NO TRAJECTORY');
+                        if (filterClass !== null) filterDesc.push(`CLASS ${filterClass}`);
+                        if (filterCommand !== null) filterDesc.push(`COMMAND ${filterCommand}`);
+
+                        const filterText = filterDesc.length > 0 ? filterDesc.join(' + ') : 'ALL SAMPLES';
+                        const confirmMsg = `⚠️ DELETE ALL SAMPLES MATCHING FILTER?\n\nFilter: ${filterText}\n\nThis will permanently delete all matching samples from this project.\n\nThis action cannot be undone.`;
+                        
+                        if (!confirm(confirmMsg)) return;
+                        const userInput = prompt(`Type 'DELETE' to confirm removing filtered samples:`);
                         if (userInput !== 'DELETE') {
                             alert('Deletion cancelled');
                             return;
                         }
-                        setDeletingUnlabeled(true);
+
+                        setLoading(true);
                         try {
-                            const response = await fetch('/api/v1/labels/batch/delete-unlabeled', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ project_id: projectId })
-                            });
-                            const result = await response.json();
-                            if (result.status === 'success') {
-                                alert(`✅ Successfully deleted ${result.deleted_count} unlabeled samples.`);
+                            const result = (await API.labels.deleteByFilter({
+                                project_id: projectId,
+                                is_labeled: filterStatus === 'all' ? undefined : (filterStatus === 'labeled'),
+                                class_id: filterClass ?? undefined,
+                                command: filterCommand ?? undefined,
+                                has_control_points: filterControlPoints ?? undefined
+                            })) as any;
+                            
+                            if (result.deleted_count !== undefined) {
+                                alert(`✅ Successfully deleted ${result.deleted_count} samples.`);
                                 loadData(false);
                             } else {
-                                alert(`❌ Failed: ${result.message}`);
+                                alert(`❌ Failed: ${result.message || 'Unknown error'}`);
                             }
                         } catch (error) {
-                            console.error('Delete unlabeled failed:', error);
-                            alert('Failed to delete unlabeled samples');
+                            console.error('Delete filtered failed:', error);
+                            alert('Failed to delete filtered samples');
                         } finally {
-                            setDeletingUnlabeled(false);
+                            setLoading(false);
                         }
                     }}
-                    disabled={deletingUnlabeled || (stats.total - stats.labeled) === 0}
+                    disabled={loading}
                     className="px-6 py-3 bg-orange-500/10 text-orange-400 font-bold rounded-2xl hover:scale-105 transition-all border-2 border-orange-500/30 hover:border-orange-500/60 flex items-center gap-2 uppercase text-xs disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                    <Eraser className="w-4 h-4" /> {deletingUnlabeled ? 'Deleting...' : 'Clear Unlabeled'}
+                    <Eraser className="w-4 h-4" /> {loading ? 'Deleting...' : 'Delete Filtered'}
                 </button>
                 <button onClick={() => setShowUploadModal(true)} className="px-8 py-3 bg-white/10 text-white font-bold rounded-2xl hover:scale-105 transition-all border-2 border-white/20 flex items-center gap-2 uppercase text-xs">
                     <Upload className="w-4 h-4" /> Upload Data

@@ -81,6 +81,11 @@ export const API = {
       fetchJSON(`/labels/${filename}`, {
         method: 'DELETE',
       }),
+    deleteByFilter: (params: { is_labeled?: boolean; split?: string; project_id?: number; class_id?: number; command?: number; has_control_points?: boolean }) =>
+      fetchJSON('/labels/batch/delete-by-filter', {
+        method: 'POST',
+        body: JSON.stringify(params),
+      }),
     reset: (filename: string) =>
       fetchJSON(`/labels/${filename}/reset`, {
         method: 'POST',

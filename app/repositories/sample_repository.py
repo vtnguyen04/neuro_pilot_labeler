@@ -115,6 +115,63 @@ class SampleRepository(BaseRepository, ISampleRepository):
             conn.execute("DELETE FROM samples WHERE image_name = ?", (filename,))
             conn.commit()
 
+    def delete_samples(
+        self,
+        is_labeled: bool | None = None,
+        split: str | None = None,
+        project_id: int | None = None,
+        class_id: int | None = None,
+        command: int | None = None,
+        has_control_points: bool | None = None,
+    ) -> list[str]:
+        """Delete samples based on filters and return the list of filenames."""
+        where_clauses = []
+        params = []
+
+        if is_labeled is not None:
+            where_clauses.append("is_labeled = ?")
+            params.append(1 if is_labeled else 0)
+
+        if split:
+            where_clauses.append("image_path LIKE ?")
+            params.append(f"%/{split}/%")
+
+        if project_id is not None:
+            where_clauses.append("project_id = ?")
+            params.append(project_id)
+
+        if class_id is not None:
+            where_clauses.append(
+                "EXISTS (SELECT 1 FROM json_each(data, '$.bboxes') WHERE json_extract(value, '$.category') = ?)"
+            )
+            params.append(class_id)
+
+        if command is not None:
+            where_clauses.append("json_extract(data, '$.command') = ?")
+            params.append(command)
+
+        if has_control_points is not None:
+            if has_control_points:
+                where_clauses.append("json_array_length(json_extract(data, '$.control_points')) > 0")
+            else:
+                where_clauses.append(
+                    "(json_extract(data, '$.control_points') IS NULL OR json_array_length(json_extract(data, '$.control_points')) = 0)"
+                )
+
+        if not where_clauses:
+            return []  # Prevent accidental delete all
+
+        # First get filenames to handle physical file cleanup later
+        select_query = "SELECT image_name FROM samples WHERE " + " AND ".join(where_clauses)
+        delete_query = "DELETE FROM samples WHERE " + " AND ".join(where_clauses)
+
+        with self._get_connection() as conn:
+            rows = conn.execute(select_query, params).fetchall()
+            filenames = [r["image_name"] for r in rows]
+            conn.execute(delete_query, params)
+            conn.commit()
+            return filenames
+
     def duplicate_sample(self, filename: str, new_filename: str):
         with self._get_connection() as conn:
             row = conn.execute("SELECT * FROM samples WHERE image_name = ?", (filename,)).fetchone()
