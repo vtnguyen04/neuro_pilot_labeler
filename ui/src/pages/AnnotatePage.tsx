@@ -38,8 +38,10 @@ export const AnnotatePage: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'labeled' | 'unlabeled'>(initialFile ? 'all' : 'unlabeled');
   const [filterClass, setFilterClass] = useState<number | null>(null);
   const [filterCommand, setFilterCommand] = useState<number | null>(null);
+  const [filterControlPoints, setFilterControlPoints] = useState<boolean | null>(null);
   const [isFilterClassOpen, setIsFilterClassOpen] = useState(false);
   const [isFilterCommandOpen, setIsFilterCommandOpen] = useState(false);
+  const [isFilterTrajectoryOpen, setIsFilterTrajectoryOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'none' | 'saving' | 'saved' | 'error'>('none');
   const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -77,10 +79,11 @@ export const AnnotatePage: React.FC = () => {
         project_id: projectId,
         is_labeled: filter === 'all' ? undefined : (filter === 'labeled'),
         class_id: filterClass ?? undefined,
-        command: filterCommand ?? undefined
+        command: filterCommand ?? undefined,
+        has_control_points: filterControlPoints ?? undefined
     });
     setSamples(list);
-  }, [projectId, filter, filterClass, filterCommand]);
+  }, [projectId, filter, filterClass, filterCommand, filterControlPoints]);
 
   useEffect(() => {
     loadClasses();
@@ -420,6 +423,47 @@ export const AnnotatePage: React.FC = () => {
                                         {i}: {c}
                                     </button>
                                 ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            <div className="relative">
+                <button
+                    onClick={() => setIsFilterTrajectoryOpen(!isFilterTrajectoryOpen)}
+                    className="flex items-center gap-3 bg-white/10 border-2 border-white/20 text-white text-sm font-black rounded-xl px-5 py-2.5 hover:border-accent transition-all min-w-[180px] shadow-lg group"
+                >
+                    <Move className={`w-4 h-4 transition-colors ${filterControlPoints !== null ? 'text-accent' : 'text-white/40'}`} />
+                    <span className="flex-1 text-left uppercase truncate">
+                        {filterControlPoints === null ? 'ALL TYPES' : (filterControlPoints ? 'HAS TRAJECTORY' : 'NO TRAJECTORY')}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isFilterTrajectoryOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isFilterTrajectoryOpen && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setIsFilterTrajectoryOpen(false)} />
+                        <div className="absolute top-full left-0 mt-2 w-full bg-[#0d0d15] border-2 border-accent/30 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="max-h-64 overflow-y-auto cyber-scrollbar py-2">
+                                <button
+                                    onClick={() => { setFilterControlPoints(null); initialized.current = false; setIsFilterTrajectoryOpen(false); }}
+                                    className={`w-full px-5 py-3 text-left text-sm font-black uppercase tracking-wider transition-colors hover:bg-accent/10 ${filterControlPoints === null ? 'bg-accent/20 text-accent' : 'text-white/60'}`}
+                                >
+                                    ALL TYPES
+                                </button>
+                                <button
+                                    onClick={() => { setFilterControlPoints(true); initialized.current = false; setIsFilterTrajectoryOpen(false); }}
+                                    className={`w-full px-5 py-3 text-left text-sm font-black uppercase tracking-wider transition-colors border-t border-white/5 hover:bg-accent/10 ${filterControlPoints === true ? 'bg-accent/20 text-accent' : 'text-white/60'}`}
+                                >
+                                    HAS TRAJECTORY
+                                </button>
+                                <button
+                                    onClick={() => { setFilterControlPoints(false); initialized.current = false; setIsFilterTrajectoryOpen(false); }}
+                                    className={`w-full px-5 py-3 text-left text-sm font-black uppercase tracking-wider transition-colors border-t border-white/5 hover:bg-accent/10 ${filterControlPoints === false ? 'bg-accent/20 text-accent' : 'text-white/60'}`}
+                                >
+                                    NO TRAJECTORY
+                                </button>
                             </div>
                         </div>
                     </>
