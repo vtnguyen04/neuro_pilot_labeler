@@ -16,7 +16,7 @@ async function fetchJSON<T>(endpoint: string, options: RequestInit = {}): Promis
 
 export const API = {
   labels: {
-    list: (params: { limit?: number; offset?: number; is_labeled?: boolean; split?: string; project_id?: number; class_id?: number; command?: number }) => {
+    list: (params: { limit?: number; offset?: number; is_labeled?: boolean; split?: string; project_id?: number; class_id?: number; command?: number; has_control_points?: boolean }) => {
       const query = new URLSearchParams();
       if (params.limit) query.append('limit', params.limit.toString());
       if (params.offset) query.append('offset', params.offset.toString());
@@ -25,6 +25,7 @@ export const API = {
       if (params.project_id) query.append('project_id', params.project_id.toString());
       if (params.class_id !== undefined) query.append('class_id', params.class_id.toString());
       if (params.command !== undefined) query.append('command', params.command.toString());
+      if (params.has_control_points !== undefined) query.append('has_control_points', params.has_control_points.toString());
       return fetchJSON<Sample[]>(`/labels/?${query.toString()}`);
     },
     getStats: (projectId?: number) => {

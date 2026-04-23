@@ -32,6 +32,7 @@ class SampleRepository(BaseRepository, ISampleRepository):
         project_id: int | None = None,
         class_id: int | None = None,
         command: int | None = None,
+        has_control_points: bool | None = None,
     ) -> list[Sample]:
         query = "SELECT image_name as filename, is_labeled, updated_at, data, image_path, project_id FROM samples"
         where_clauses = []
@@ -58,6 +59,14 @@ class SampleRepository(BaseRepository, ISampleRepository):
         if command is not None:
             where_clauses.append("json_extract(data, '$.command') = ?")
             params.append(command)
+
+        if has_control_points is not None:
+            if has_control_points:
+                where_clauses.append("json_array_length(json_extract(data, '$.control_points')) > 0")
+            else:
+                where_clauses.append(
+                    "(json_extract(data, '$.control_points') IS NULL OR json_array_length(json_extract(data, '$.control_points')) = 0)"
+                )
 
         if where_clauses:
             query += " WHERE " + " AND ".join(where_clauses)

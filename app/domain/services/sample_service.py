@@ -21,8 +21,11 @@ class SampleService:
         project_id: int | None = None,
         class_id: int | None = None,
         command: int | None = None,
+        has_control_points: bool | None = None,
     ) -> list[dict]:
-        samples = self.sample_repo.get_all_samples(limit, offset, is_labeled, split, project_id, class_id, command)
+        samples = self.sample_repo.get_all_samples(
+            limit, offset, is_labeled, split, project_id, class_id, command, has_control_points
+        )
 
         result = []
         for s in samples:

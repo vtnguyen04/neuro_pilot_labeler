@@ -115,6 +115,7 @@ export const DatasetPage: React.FC = () => {
   const [filterClass, setFilterClass] = useState<number | null>(null);
   const [filterCommand, setFilterCommand] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'labeled' | 'unlabeled'>('all');
+  const [filterControlPoints, setFilterControlPoints] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -145,7 +146,8 @@ export const DatasetPage: React.FC = () => {
             project_id: projectId,
             is_labeled: filterStatus === 'all' ? undefined : (filterStatus === 'labeled'),
             class_id: filterClass ?? undefined,
-            command: filterCommand ?? undefined
+            command: filterCommand ?? undefined,
+            has_control_points: filterControlPoints ?? undefined
         });
 
         if (isLoadMore) {
@@ -159,11 +161,11 @@ export const DatasetPage: React.FC = () => {
     } finally {
         setLoading(false);
     }
-  }, [projectId, filterStatus, filterClass, filterCommand, samples.length, loading]);
+  }, [projectId, filterStatus, filterClass, filterCommand, filterControlPoints, samples.length, loading]);
 
   useEffect(() => {
     loadData(false).catch(console.error);
-  }, [projectId, filterStatus, filterClass, filterCommand]);
+  }, [projectId, filterStatus, filterClass, filterCommand, filterControlPoints]);
 
   if (!stats) return <div className="h-screen flex items-center justify-center text-accent font-cyber animate-pulse tracking-[0.5em]">SYSTEM_INITIALIZING...</div>;
 
@@ -345,6 +347,19 @@ export const DatasetPage: React.FC = () => {
                         <option value="all">ALL DATA</option>
                         <option value="unlabeled">TODO</option>
                         <option value="labeled">COMPLETED</option>
+                    </select>
+                    <select
+                        className="bg-[#1a1a1c] border-2 border-white/30 text-white text-base font-black rounded-xl px-6 py-3 outline-none hover:border-accent transition-colors"
+                        value={filterControlPoints === null ? '' : filterControlPoints.toString()}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') setFilterControlPoints(null);
+                            else setFilterControlPoints(val === 'true');
+                        }}
+                    >
+                        <option value="">ALL TYPES</option>
+                        <option value="true">HAS TRAJECTORY</option>
+                        <option value="false">NO TRAJECTORY</option>
                     </select>
                     <select
                         className="bg-[#1a1a1c] border-2 border-white/30 text-white text-base font-black rounded-xl px-6 py-3 outline-none hover:border-accent transition-colors"

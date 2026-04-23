@@ -118,9 +118,10 @@ def list_labels(
     project_id: int | None = None,
     class_id: int | None = None,
     command: int | None = None,
+    has_control_points: bool | None = None,
     service: SampleService = Depends(get_sample_service),
 ):
-    return service.get_samples(limit, offset, is_labeled, split, project_id, class_id, command)
+    return service.get_samples(limit, offset, is_labeled, split, project_id, class_id, command, has_control_points)
 
 
 @router.get("/image/{filename}")

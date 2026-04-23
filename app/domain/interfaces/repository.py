@@ -64,6 +64,7 @@ class ISampleRepository(ABC):
         project_id: int | None = None,
         class_id: int | None = None,
         command: int | None = None,
+        has_control_points: bool | None = None,
     ) -> list[Sample]:
         pass
 
