@@ -107,3 +107,14 @@ class ISampleRepository(ABC):
     @abstractmethod
     def update_raw_sample_data(self, sample_id: int, raw_data_str: str) -> None:
         pass
+
+    @abstractmethod
+    def copy_sample_to_project(
+        self,
+        filename: str,
+        new_filename: str,
+        new_project_id: int,
+        class_map: dict[int, int],
+        command_map: dict[int, int],
+    ) -> None:
+        pass

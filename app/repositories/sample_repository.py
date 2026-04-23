@@ -315,6 +315,42 @@ class SampleRepository(BaseRepository, ISampleRepository):
             sample.reset_label()
             self.save_label(sample)
 
-    def add_sample_legacy(self, filename: str, image_path: str, project_id: int):
-        s = Sample(filename=filename, image_path=image_path, project_id=project_id)
-        self.add_sample(s)
+    def copy_sample_to_project(
+        self,
+        filename: str,
+        new_filename: str,
+        new_project_id: int,
+        class_map: dict[int, int],
+        command_map: dict[int, int],
+    ) -> None:
+        """Copy a sample to a new project with re-mapped class and command IDs."""
+        sample = self.get_sample(filename)
+        if not sample:
+            return
+
+        # Map class IDs in bboxes
+        for bbox in sample.label_data.bboxes:
+            if bbox.category in class_map:
+                bbox.category = class_map[bbox.category]
+
+        # Map command ID
+        if sample.label_data.command in command_map:
+            sample.label_data.command = command_map[sample.label_data.command]
+
+        with self._get_connection() as conn:
+            try:
+                conn.execute(
+                    "INSERT INTO samples (image_name, image_path, project_id, data, is_labeled) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (
+                        new_filename,
+                        sample.image_path,
+                        new_project_id,
+                        sample.label_data.to_json_str(),
+                        1 if sample.is_labeled else 0,
+                    ),
+                )
+                conn.commit()
+            except sqlite3.IntegrityError:
+                # If new_filename already exists, skip or handle accordingly
+                pass

@@ -77,6 +77,18 @@ def delete_project(project_id: int, service: ProjectService = Depends(get_projec
     return {"status": "success"}
 
 
+@router.post("/projects/merge")
+def merge_projects(payload: dict, service: ProjectService = Depends(get_project_service)):
+    project_ids = payload.get("project_ids", [])
+    new_name = payload.get("new_name")
+    description = payload.get("description")
+    if not project_ids or not new_name:
+        raise HTTPException(status_code=400, detail="Missing project_ids or new_name")
+
+    new_id = service.merge_projects(project_ids, new_name, description)
+    return {"status": "success", "new_project_id": new_id}
+
+
 @router.get("/projects/{project_id}/classes")
 def get_classes(project_id: int, service: ProjectService = Depends(get_project_service)):
     return service.get_classes(project_id)

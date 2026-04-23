@@ -129,3 +129,49 @@ class ProjectService:
         raw_stats["command_distribution"] = command_distribution
 
         return raw_stats
+
+    def merge_projects(self, project_ids: list[int], new_name: str, new_description: str | None = None) -> int:
+        """Merge multiple projects into a new one with unified classes."""
+        source_projects = []
+        for pid in project_ids:
+            p = self.get_project(pid)
+            if p:
+                source_projects.append(p)
+
+        if not source_projects:
+            raise ValueError("No valid source projects found")
+
+        # 1. Union of all classes and commands
+        merged_classes = []
+        for p in source_projects:
+            for c in p.classes:
+                if c not in merged_classes:
+                    merged_classes.append(c)
+
+        merged_commands = []
+        for p in source_projects:
+            for cmd in p.commands:
+                if cmd not in merged_commands:
+                    merged_commands.append(cmd)
+
+        # 2. Create the new project
+        new_project_id = self.create_project(new_name, new_description, merged_classes, merged_commands)
+
+        # 3. For each project, map old IDs to new IDs and copy samples
+        for p in source_projects:
+            class_map = {old_idx: merged_classes.index(cname) for old_idx, cname in enumerate(p.classes)}
+            command_map = {old_idx: merged_commands.index(cname) for old_idx, cname in enumerate(p.commands)}
+
+            # Get all samples for this project
+            samples = self.sample_repo.get_all_samples(limit=1000000, project_id=p.id)
+
+            for s in samples:
+                # To avoid filename collision in the new project, we could prefix it
+                # but since image_name is PRIMARY KEY, we must ensure uniqueness.
+                # If merging projects with same filenames, we'll prefix with project_id.
+                new_filename = f"merged_{p.id}_{s.filename}"
+                self.sample_repo.copy_sample_to_project(
+                    s.filename, new_filename, new_project_id, class_map, command_map
+                )
+
+        return new_project_id

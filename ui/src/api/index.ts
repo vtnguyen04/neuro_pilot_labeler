@@ -46,6 +46,11 @@ export const API = {
         body: JSON.stringify({ name, description, classes })
       }),
     deleteProject: (projectId: number) => fetchJSON(`/labels/projects/${projectId}`, { method: 'DELETE' }),
+    mergeProjects: (projectIds: number[], newName: string, description?: string) =>
+      fetchJSON<{ status: string, new_project_id: number }>('/labels/projects/merge', {
+        method: 'POST',
+        body: JSON.stringify({ project_ids: projectIds, new_name: newName, description })
+      }),
     getClasses: (projectId: number) => fetchJSON<string[]>(`/labels/projects/${projectId}/classes`),
     getCommands: (projectId: number) => fetchJSON<string[]>(`/labels/projects/${projectId}/commands`),
     deleteClass: (projectId: number, classIndex: number) => fetchJSON(`/labels/projects/${projectId}/classes/${classIndex}`, { method: 'DELETE' }),
