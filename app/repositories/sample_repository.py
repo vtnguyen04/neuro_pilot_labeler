@@ -64,8 +64,11 @@ class SampleRepository(BaseRepository, ISampleRepository):
             if has_control_points:
                 where_clauses.append("json_array_length(json_extract(data, '$.control_points')) > 0")
             else:
+                # Handle both null, non-existent, and empty array
                 where_clauses.append(
-                    "(json_extract(data, '$.control_points') IS NULL OR json_array_length(json_extract(data, '$.control_points')) = 0)"
+                    "(json_extract(data, '$.control_points') IS NULL OR "
+                    "json_type(data, '$.control_points') IS NULL OR "
+                    "json_array_length(json_extract(data, '$.control_points')) = 0)"
                 )
 
         if where_clauses:
@@ -154,8 +157,11 @@ class SampleRepository(BaseRepository, ISampleRepository):
             if has_control_points:
                 where_clauses.append("json_array_length(json_extract(data, '$.control_points')) > 0")
             else:
+                # Handle both null, non-existent, and empty array
                 where_clauses.append(
-                    "(json_extract(data, '$.control_points') IS NULL OR json_array_length(json_extract(data, '$.control_points')) = 0)"
+                    "(json_extract(data, '$.control_points') IS NULL OR "
+                    "json_type(data, '$.control_points') IS NULL OR "
+                    "json_array_length(json_extract(data, '$.control_points')) = 0)"
                 )
 
         if not where_clauses:

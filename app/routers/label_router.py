@@ -193,12 +193,17 @@ def delete_unlabeled_samples(
 @router.post("/batch/delete-by-filter")
 def delete_by_filter(payload: dict, service: SampleService = Depends(get_sample_service)):
     """Delete samples based on arbitrary filter."""
-    is_labeled = payload.get("is_labeled")
+    def to_bool(val):
+        if val is None: return None
+        if isinstance(val, bool): return val
+        return str(val).lower() == "true"
+
+    is_labeled = to_bool(payload.get("is_labeled"))
     split = payload.get("split")
     project_id = payload.get("project_id")
     class_id = payload.get("class_id")
     command = payload.get("command")
-    has_control_points = payload.get("has_control_points")
+    has_control_points = to_bool(payload.get("has_control_points"))
 
     return service.delete_samples_by_filter(
         is_labeled, split, project_id, class_id, command, has_control_points
